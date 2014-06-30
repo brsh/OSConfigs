@@ -41,6 +41,8 @@ shopt -s autocd
 ## Basic Niceties ##
 ####################
 
+export EDITOR=nano
+
 # set variable identifying the chroot you work in (used in the prompt below)
 if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
     debian_chroot=$(cat /etc/debian_chroot)
@@ -56,13 +58,13 @@ fi
 # sudo hint
 if [ ! -e "$HOME/.sudo_as_admin_successful" ] && [ ! -e "$HOME/.hushlogin" ] ; then
     case " $(groups) " in *\ admin\ *)
-    if [ -x /usr/bin/sudo ]; then
-	cat <<-EOF
-	To run a command as administrator (user "root"), use "sudo <command>".
-	See "man sudo_root" for details.
+	    if [ -x /usr/bin/sudo ]; then
+			cat <<-EOF
+			To run a command as administrator (user "root"), use "sudo <command>".
+			See "man sudo_root" for details.
 	
-	EOF
-    fi
+			EOF
+    	fi
     esac
 fi
 
@@ -147,7 +149,15 @@ On_IWhite='\e[0;107m'   # White
 ## Basic Stuff ##
 #################
 
-[[ "$PS1" ]] && echo -e "$BIYellow";/usr/games/fortune;echo -e "$Color_Off"
+# Test for Fortune and run it (games is ubuntu, bin is arch)
+if [[ "$PS1" ]] ; then
+        if [[ -x /usr/games/fortune ]]; then 
+                echo -e "$BIYellow";/usr/games/fortune -sa;echo -e "$Color_Off"
+        fi
+        if [[ -x /usr/bin/fortune ]]; then 
+                echo -e "$BIYellow";/usr/bin/fortune -sa;echo -e "$Color_Off"
+        fi 
+fi
 
 # set an ugly prompt (non-color, overwrite the one in /etc/profile)
  PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
@@ -161,6 +171,16 @@ case ${TERM} in
 		PROMPT_COMMAND=${PROMPT_COMMAND:+$PROMPT_COMMAND; }'printf "\033_%s@%s:%s\033\\" "${USER}" "${HOSTNAME%%.*}" "${PWD/#$HOME/~}"'
 		;;
 esac
+
+#coloring LESS
+export LESS=-IR
+export LESS_TERMCAP_me=$(printf '\e[0m')
+export LESS_TERMCAP_se=$(printf '\e[0m')
+export LESS_TERMCAP_ue=$(printf '\e[0m')
+export LESS_TERMCAP_mb=$(printf '\e[1;32m')
+export LESS_TERMCAP_md=$(printf '\e[1;34m')
+export LESS_TERMCAP_us=$(printf '\e[1;32m')
+export LESS_TERMCAP_so=$(printf '\e[1;44;1m')
 
 #################
 ## Color Stuff ##
@@ -200,24 +220,6 @@ if [[ $'\n'${match_lhs} == *$'\n'"TERM "${safe_term}* ]] ; then
    else
       PS1="${debian_chroot:+($debian_chroot)}\n\[$BWhite\][\[$Yellow\]\@\[$BWhite\]] [\[$BGreen\]\u\[$BPurple\]@\h\[$BWhite\]] [\[$BIBlue\]\w\[$BWhite\]]\[$Color_Off\]\n\$ "
    fi
-
-    alias ls='ls --color=auto'
-    alias dir='dir --color=auto'
-    alias vdir='vdir --color=auto'
-
-    alias grep='grep --color=auto'
-    alias fgrep='fgrep --color=auto'
-    alias egrep='egrep --color=auto'
-
-##else
-##
-##	# show root@ when we do not have colors
-##
-##	PS1="\u@\h \w \$([[ \$? != 0 ]] && echo \":( \")\$ "
-##
-##	# Use this other PS1 string if you want \W for root and \w for all other users:
-##	# PS1="\u@\h $(if [[ ${EUID} == 0 ]]; then echo '\W'; else echo '\w'; fi) \$([[ \$? != 0 ]] && echo \":( \")\$ "
-##
 fi
 
 PS2="> "
@@ -231,6 +233,12 @@ unset safe_term match_lhs
 ## Aliases ##
 #############
 
+alias ls='ls --color=auto --human-readable --group-directories-first --classify'
+alias vdir='vdir --color=auto'
+alias fgrep='fgrep --color=auto'
+alias egrep='egrep --color=auto'
+alias grep='grep --color=auto'
+
 alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
@@ -243,6 +251,6 @@ alias diff='colordiff'
 
 if [ $UID -ne 0 ]; then
 	alias reboot='sudo reboot'
-	alias shutdown='sudo shutdown -t 2 now'
+	alias shutdown='sudo shutdown -t 2 now -h'
 fi
 
