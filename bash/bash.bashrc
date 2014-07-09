@@ -284,7 +284,7 @@ else
     SU=${Green}         # User is normal (well ... most of us are).
 fi
 
-IP=$(which ip 2> /dev/nul)
+IP=$(which ip 2> /dev/null)
 if [[ ${IP} && ${IP-x} ]]; then
 	IP=`ip addr show | grep global | awk '{print $2}'`
 else
@@ -331,7 +331,7 @@ function load_color()
 # Formating for memory
 function memory_color()
 {
-local freeExists=$(which free 2> /dev/nul)
+local freeExists=$(which free 2> /dev/null)
 if [[ ${freeExists} && ${freeExists-x} ]]; then
 	local memfree=`free -m | head -n 2 | tail -n 1 | awk {'print $4'}`
 	local memtotal=`free -m | head -n 2 | tail -n 1 | awk {'print $2'}`
