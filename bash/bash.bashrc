@@ -13,7 +13,7 @@ shopt -s checkwinsize
 
 # don't put duplicate lines in the history. See bash(1) for more options
 # ... or force ignoredups and ignorespace
-export HISTCONTROL=ignoredups
+export HISTCONTROL=ignoreboth
 
 # don't remember the following:
 export HISTIGNORE="&:bg:fg:ll:h" 
@@ -57,19 +57,6 @@ fi
 # Try to enable the "Command not found" hook ("pacman -S pkgfile" to install it).
 # See also: https://wiki.archlinux.org/index.php/Bash#The_.22command_not_found.22_hook
 [ -r /usr/share/doc/pkgfile/command-not-found.bash ] && . /usr/share/doc/pkgfile/command-not-found.bash
-
-# sudo hint
-#if [ ! -e "$HOME/.sudo_as_admin_successful" ] && [ ! -e "$HOME/.hushlogin" ] ; then
-#    case " $(groups) " in *\ admin\ *)
-#    if [ -x /usr/bin/sudo ]; then
-#	cat <<-EOF
-#	To run a command as administrator (user "root"), use "sudo <command>".
-#	See "man sudo_root" for details.
-#	
-#	EOF
-#    fi
-#    esac
-#fi
 
 ####################
 ## Set Color Vars ##
@@ -147,6 +134,50 @@ On_IBlue='\e[0;104m'    # Blue
 On_IPurple='\e[10;95m'  # Purple
 On_ICyan='\e[0;106m'    # Cyan
 On_IWhite='\e[0;107m'   # White
+
+######################
+## Useful Functions ##
+######################
+
+function list_colors {
+local T='gYw'     # the test text
+echo -e "\n        40m  100m 41m  101m 42m  102m 43m  103m\
+ 44m  104m 45m  105m 46m  106m 47m  107m";
+
+for FGs in '    m' '   1m' \
+           '  30m' '2;30m' '1;30m' '4;30m' '7;30m' \
+           '  90m' '2;90m' '1;90m' '4;90m' '7;90m' \
+           '  31m' '2;31m' '1;31m' '4;31m' '7;31m' \
+           '  32m' '2;32m' '1;32m' '4;32m' '7;32m' \
+           '  33m' '2;33m' '1;33m' '4;33m' '7;33m' \
+           '  34m' '2;34m' '1;34m' '4;34m' '7;34m' \
+           '  35m' '2;35m' '1;35m' '4;35m' '7;35m' \
+           '  36m' '2;36m' '1;36m' '4;36m' '7;36m' \
+           '  37m' '2;37m' '1;37m' '4;37m' '7;37m';
+	do FG=${FGs// /}
+        echo -en " $FGs \033[$FG $T "
+	for BG in 40m 41m 101m 42m 102m 43m 103m 44m 104m 45m 105m 46m 106m 47m 107m;
+		do echo -en "$EINS\033[$FG\033[$BG $T \033[0m";
+	done
+	echo;
+done
+echo
+}
+
+function list_colors_256 {
+## FG Format: <Esc>[38;5;COLORm
+## BF Format: <Esc>[48;5;COLORm
+for fgbg in 38 48 ; do 
+	for color in {0..256} ; do
+		echo -en "\e[${fgbg};5;${color}m ${color}\t\e[0m"
+		if [ $((($color + 1) % 10)) == 0 ] ; then
+			echo 
+		fi
+	done
+	echo 
+done
+}
+
 
 #################
 ## Basic Stuff ##
@@ -239,7 +270,8 @@ if [ -n "${SSH_CONNECTION}" ]; then
 fi
 
 # Test user type:
-if [[ ${USER} == "root" ]]; then
+#if [[ ${USER} == "root" ]]; then
+if [[ ${USER} == "root" ]] || [[ -w /cygdrive/c/Windows ]]; then
     SU=${Red}           # User is root.
     if [[ $SUDO_USER && ${SUDO_USER-x} ]]; then
 	SU="$White($Green$SUDO_USER$White)$Red"
@@ -252,7 +284,12 @@ else
     SU=${Green}         # User is normal (well ... most of us are).
 fi
 
-IP=`ip addr show | grep global | awk '{print $2}'`
+IP=$(which ip 2> /dev/nul)
+if [[ ${IP} && ${IP-x} ]]; then
+	IP=`ip addr show | grep global | awk '{print $2}'`
+else
+	IP=$(route print | egrep "^ +0.0.0.0 +0.0.0.0 +" | gawk 'BEGIN { metric=255; ip="0.0.0.0"; } { if ( $5 < metric ) { ip=$4; metric=$5; } } END { printf("%s\n",ip); }')
+fi
 if [[ $IP && ${IP-x} ]]; then
 	IP="\[$OPENB\]\[$Yellow\]$IP\[$CLOSEB\]"
 fi
@@ -265,7 +302,12 @@ XLOAD=$(( 400*${NCPU} ))        # Xlarge load
 # Returns system load as percentage, i.e., '40' rather than '0.40)'.
 function load()
 {
-    local SYSLOAD=$(cut -d " " -f1 /proc/loadavg | tr -d '.')
+local SYSLOAD=""
+if [ "${OS}" == "Windows_NT" ]; then
+	SYSLOAD=$(typeperf "\Processor(_Total)\% Processor Time" -sc 1 | sed -n '3p' | cut -d , -f2 | tr -d \" | cut -d . -f1) 
+else
+    SYSLOAD=$(cut -d " " -f1 /proc/loadavg | tr -d '.')
+fi
     # System load of the current host.
     echo $((10#$SYSLOAD))       # Convert to decimal.
 }
@@ -289,9 +331,13 @@ function load_color()
 # Formating for memory
 function memory_color()
 {
+local freeExists=$(which free 2> /dev/nul)
+if [[ ${freeExists} && ${freeExists-x} ]]; then
 	local memfree=`free -m | head -n 2 | tail -n 1 | awk {'print $4'}`
 	local memtotal=`free -m | head -n 2 | tail -n 1 | awk {'print $2'}`
 	local memcent=$(echo "scale=0; (100*$memfree/$memtotal)" | bc -l)
+
+	echo -en "${OPENB}${White}mem "
 
         if [ ${memcent} -gt 85 ]; then
             echo -en ${BRed}           # Memory almost full (>95%).
@@ -300,7 +346,8 @@ function memory_color()
         else
             echo -en ${Green}           # Memory space is ok.
         fi
-        echo -en "$memcent$White% free"
+        echo -en "${memcent}${White}% free${CLOSEB}"
+fi
 }
 
 # Returns a color according to free disk space in $PWD.
@@ -314,7 +361,7 @@ function disk_color()
 	echo -en ${Green}
 	echo -en " RW"
     fi
-    if [ -s "${PWD}" ] ; then
+    if [ -d "${PWD}" ] ; then
         local used=$(command df -P "$PWD" |
                    awk 'END {print $5} {sub(/%/,"")}')
         if [ ${used} -gt 95 ]; then
@@ -338,7 +385,7 @@ function error_result()
     local Last_Command=$?
 
     if [[ ! $Last_Command == 0 ]]; then
-        echo -en "$IWhite[e$Red$Last_Command$IWhite] "
+        echo -en "${IWhite}[e${Red}${Last_Command}${IWhite}] "
     fi
     echo -en ${Color_Off}
 }
@@ -358,7 +405,7 @@ PROMPT_COMMAND="history -a"
 	# Load info
 	PS1=${PS1}"\[$OPENB\]\[$White\]ld \[\$(load_color)\]\[$CLOSEB\]"
 	# Memory Load info
-	PS1=${PS1}"\[$OPENB\]\[$White\]mem \[\$(memory_color)\]\[$CLOSEB\]"
+	PS1=${PS1}"\[\$(memory_color)\]"
 	# History
 	PS1=${PS1}"\[$OPENB\]\[$White\]h\[$Green\]\!\[$CLOSEB\]"
 	# IP
@@ -380,7 +427,7 @@ PS3="> "
 PS4="+ "
 
 # Try to keep environment pollution down, EPA loves us.
-unset safe_term match_lhs OPENB CLOSEB CNX SSH_IP SSH_NAME IP
+unset safe_term match_lhs CNX SSH_IP SSH_NAME IP
 
 #############
 ## Aliases ##
@@ -392,6 +439,7 @@ alias fgrep='fgrep --color=auto'
 alias egrep='egrep --color=auto'
 alias grep='grep --color=auto'
 alias gedit='gedit &'
+alias nano='nano -w'
 
 alias ll='ls -alF'
 alias la='ls -A'
@@ -405,6 +453,10 @@ alias diff='colordiff'
 
 if [ $UID -ne 0 ]; then
 	alias reboot='sudo reboot'
-	alias shutdown='sudo shutdown -t 2 now'
+	alias shutdown='sudo shutdown -t 2 now -h'
 fi
 
+if [ "${OS}" == "Windows_NT" ]; then
+	alias sudo='echo -e "\nSudo is not available in CygWin. Use sudo-s instead."'
+	alias sudo-s='/usr/bin/cygstart --action=runas /usr/bin/mintty -e /usr/bin/bash --login'
+fi
