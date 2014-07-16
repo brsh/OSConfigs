@@ -290,8 +290,13 @@ if [[ ${IP} && ${IP-x} ]]; then
 else
 	IP=$(route print | egrep "^ +0.0.0.0 +0.0.0.0 +" | gawk 'BEGIN { metric=255; ip="0.0.0.0"; } { if ( $5 < metric ) { ip=$4; metric=$5; } } END { printf("%s\n",ip); }')
 fi
+
+IPSSID=$(iwgetid -r)
+if [[ $IPSSID && ${IPSSID-x} ]]; then
+	IPSSID=${IPSSID}" "
+fi
 if [[ $IP && ${IP-x} ]]; then
-	IP="\[$OPENB\]\[$Yellow\]$IP\[$CLOSEB\]"
+	IP="\[$OPENB\]\[$Green\]$IPSSID\[$Yellow\]$IP\[$CLOSEB\]"
 fi
 
 NCPU=$(grep -c 'processor' /proc/cpuinfo)    # Number of CPUs
@@ -339,9 +344,9 @@ if [[ ${freeExists} && ${freeExists-x} ]]; then
 
 	echo -en "${OPENB}${White}mem "
 
-        if [ ${memcent} -gt 85 ]; then
+        if [ ${memcent} -lt 15 ]; then
             echo -en ${BRed}           # Memory almost full (>95%).
-        elif [ ${memcent} -gt 65 ]; then
+        elif [ ${memcent} -lt 35 ]; then
             echo -en ${BYellow}            # Memory space almost gone.
         else
             echo -en ${Green}           # Memory space is ok.
@@ -390,14 +395,60 @@ function error_result()
     echo -en ${Color_Off}
 }
 
+function battery_status()
+{
+local BATSTAT=""
+for BATS in 'BAT0' 'BAT1' ; do
+if [ -d /sys/class/power_supply/${BATS} ]; then
+        local BATTERY=/sys/class/power_supply/${BATS}
+ 
+        local CHARGE=`cat $BATTERY/capacity`
+        local BATSTATE=`cat $BATTERY/status`
+        # Colors for humans
+
+        local COLOUR="$Red"
+
+        case "${BATSTATE}" in
+           'Charged')
+           BATSTT=""
+           ;;
+           'Charging')
+           BATSTT="${Green}+${Color_Off}"
+           ;;
+           'Discharging')
+           BATSTT="${Red}-${Color_Off}"
+           ;;
+        esac
+
+        # prevent a charge of more than 100% displaying
+        if [ "$CHARGE" -gt "99" ]
+        then
+           CHARGE=100
+        fi
+ 
+        if [ "$CHARGE" -gt "15" ]
+        then
+           COLOUR="$Yellow"
+        fi
+ 
+        if [ "$CHARGE" -gt "30" ]
+        then
+           COLOUR="$Green"
+        fi
+	if [[ ${BATSTAT} && ${BATSTAT-x} ]]; then 
+		BATSTAT=${BATSTAT}" "
+	fi
+        BATSTAT=${BATSTAT}"${COLOUR}${CHARGE}%"
+fi
+done
+if [[ ${BATSTAT} && ${BATSTAT-x} ]] ; then
+	echo -en "${OPENB}${BATSTT}${BATSTAT}${CLOSEB}"
+fi
+}
+
 # Now we construct the prompt.
 PROMPT_COMMAND="history -a"
 
-#   if [ $(id -u) -eq 0 ]; then
-#      PS1="${debian_chroot:+($debian_chroot)}\n\[$BWhite\][\[$Yellow\]\@\[$BWhite\]] [\[$BRed\]\u\[$BPurple\]@\h\[$BWhite\]] [\[$BIBlue\]\w\[$BWhite\]]\[$Color_Off\]\n\$ "
-#   else
-#      PS1="${debian_chroot:+($debian_chroot)}\n\[$BWhite\][\[$Yellow\]\@\[$BWhite\]] [\[$BGreen\]\u\[$BPurple\]@\h\[$BWhite\]] [\[$BIBlue\]\w\[$BWhite\]]\[$Color_Off\]\n\$ "
-#   fi
 	#Error and History info
 	PS1="\n\[\$(error_result)\]"
 	# Shell Depth
@@ -410,6 +461,8 @@ PROMPT_COMMAND="history -a"
 	PS1=${PS1}"\[$OPENB\]\[$White\]h\[$Green\]\!\[$CLOSEB\]"
 	# IP
 	PS1=${PS1}"$IP"
+	# Battery
+	PS1=${PS1}"\[\$(battery_status)\]"
 	PS1=${PS1}"\n"
         # Day and Time
 	PS1=${PS1}"\[$OPENB\]\[$Yellow\]\D{%a %I:%M%P}\[$CLOSEB\]"
