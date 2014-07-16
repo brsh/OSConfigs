@@ -13,10 +13,10 @@ shopt -s checkwinsize
 
 # don't put duplicate lines in the history. See bash(1) for more options
 # ... or force ignoredups and ignorespace
-export HISTCONTROL=ignoreboth
+export HISTCONTROL=erasedups:ignorespace
 
 # don't remember the following:
-export HISTIGNORE="&:bg:fg:ll:h" 
+export HISTIGNORE="&:bg:fg:h:pwd:passwd:history *" 
 
 # Enable history appending instead of overwriting.
 shopt -s histappend
@@ -25,8 +25,8 @@ shopt -s histappend
 shopt -s cdspell
 
 # for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
-export HISTSIZE=1000
-export HISTFILESIZE=2000
+export HISTSIZE=300
+export HISTFILESIZE=300
 
 # make less more friendly for non-text input files, see lesspipe(1)
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
@@ -115,6 +115,16 @@ IPurple='\e[0;95m'      # Purple
 ICyan='\e[0;96m'        # Cyan
 IWhite='\e[0;97m'       # White
 
+# Inverse
+InvBlack='\e[7;30m'       # Black
+InvRed='\e[7;31m'         # Red
+InvGreen='\e[7;32m'       # Green
+InvYellow='\e[7;33m'      # Yellow
+InvBlue='\e[7;34m'        # Blue
+InvPurple='\e[7;35m'      # Purple
+InvCyan='\e[7;36m'        # Cyan
+InvWhite='\e[7;37m'       # White
+
 # Bold High Intensity
 BIBlack='\e[1;90m'      # Black
 BIRed='\e[1;91m'        # Red
@@ -148,7 +158,9 @@ for FGs in '    m' '   1m' \
            '  30m' '2;30m' '1;30m' '4;30m' '7;30m' \
            '  90m' '2;90m' '1;90m' '4;90m' '7;90m' \
            '  31m' '2;31m' '1;31m' '4;31m' '7;31m' \
+           '  91m' '2;91m' '1;91m' '4;91m' '7;91m' \
            '  32m' '2;32m' '1;32m' '4;32m' '7;32m' \
+           '  92m' '2;92m' '1;92m' '4;92m' '7;92m' \
            '  33m' '2;33m' '1;33m' '4;33m' '7;33m' \
            '  34m' '2;34m' '1;34m' '4;34m' '7;34m' \
            '  35m' '2;35m' '1;35m' '4;35m' '7;35m' \
@@ -178,6 +190,26 @@ for fgbg in 38 48 ; do
 done
 }
 
+##### Inserts a flag with the specified content
+# Usage: flag "comment"
+# If no comment, inserts the date.
+function flag(){
+    local message=""
+
+    if [ "$1" == "" ]; then
+         message="[======  $(date +'%A -- %B %e, %Y -- %I:%M%P')  ======]"
+    else
+         message="[======  $@  ======]"
+    fi
+
+    echo -en "\n${InvWhite}$(seq -s ' ' ${#message} | sed 's/[0-9]//g')"
+    echo -e ${Color_Off}
+
+    echo -e ${InvWhite}${message} ${Color_Off}
+
+    echo -en "${InvWhite}$(seq -s ' ' ${#message} | sed 's/[0-9]//g')"
+    echo -e ${Color_Off}
+}
 
 #################
 ## Basic Stuff ##
@@ -187,10 +219,10 @@ done
 # Test for Fortune and run it (games is ubuntu, bin is arch)
 if [[ "$PS1" ]] ; then
         if [[ -x /usr/games/fortune ]]; then 
-                echo -e "$IYellow";/usr/games/fortune -sa;echo -e "$Color_Off"
+                echo -e "$IYellow";/usr/games/fortune -sa;echo -en "$Color_Off"
         fi
         if [[ -x /usr/bin/fortune ]]; then 
-                echo -e "$IYellow";/usr/bin/fortune -sa;echo -e "$Color_Off"
+                echo -e "$IYellow";/usr/bin/fortune -sa;echo -en "$Color_Off"
         fi 
 fi
 
@@ -221,7 +253,6 @@ export LESS_TERMCAP_so=$(printf '\e[1;44;1m')
 ## Color Stuff ##
 #################
 
-# Set colorful PS1 only on colorful terminals.
 # dircolors --print-database uses its own built-in database
 # instead of using /etc/DIR_COLORS. Try to use the external file
 # first to take advantage of user additions. Use internal bash
@@ -238,7 +269,7 @@ match_lhs=""
 	&& match_lhs=$(dircolors --print-database)
 
 if [[ $'\n'${match_lhs} == *$'\n'"TERM "${safe_term}* ]] ; then
-	
+
 	# we have colors :-)
 
 	# Enable colors for ls, etc. Prefer ~/.dir_colors
@@ -270,7 +301,6 @@ if [ -n "${SSH_CONNECTION}" ]; then
 fi
 
 # Test user type:
-#if [[ ${USER} == "root" ]]; then
 if [[ ${USER} == "root" ]] || [[ -w /cygdrive/c/Windows ]]; then
     SU=${Red}           # User is root.
     if [[ $SUDO_USER && ${SUDO_USER-x} ]]; then
@@ -284,6 +314,7 @@ else
     SU=${Green}         # User is normal (well ... most of us are).
 fi
 
+#Try to pull ip info (ip address and netmask)
 IP=$(which ip 2> /dev/null)
 if [[ ${IP} && ${IP-x} ]]; then
 	IP=`ip addr show | grep global | awk '{print $2}'`
@@ -291,14 +322,17 @@ else
 	IP=$(route print | egrep "^ +0.0.0.0 +0.0.0.0 +" | gawk 'BEGIN { metric=255; ip="0.0.0.0"; } { if ( $5 < metric ) { ip=$4; metric=$5; } } END { printf("%s\n",ip); }')
 fi
 
-IPSSID=$(iwgetid -r)
+#try to pull ssid
+IPSSID=$(which iwgetid 2> /dev/null)
 if [[ $IPSSID && ${IPSSID-x} ]]; then
-	IPSSID=${IPSSID}" "
+	IPSSID=$(iwgetid -r)" "
 fi
+#put it all together
 if [[ $IP && ${IP-x} ]]; then
 	IP="\[$OPENB\]\[$Green\]$IPSSID\[$Yellow\]$IP\[$CLOSEB\]"
 fi
 
+#Set up for load monitoring
 NCPU=$(grep -c 'processor' /proc/cpuinfo)    # Number of CPUs
 SLOAD=$(( 100*${NCPU} ))        # Small load
 MLOAD=$(( 200*${NCPU} ))        # Medium load
@@ -307,14 +341,14 @@ XLOAD=$(( 400*${NCPU} ))        # Xlarge load
 # Returns system load as percentage, i.e., '40' rather than '0.40)'.
 function load()
 {
-local SYSLOAD=""
-if [ "${OS}" == "Windows_NT" ]; then
+  local SYSLOAD=""
+  if [ "${OS}" == "Windows_NT" ]; then
 	SYSLOAD=$(typeperf "\Processor(_Total)\% Processor Time" -sc 1 | sed -n '3p' | cut -d , -f2 | tr -d \" | cut -d . -f1) 
-else
-    SYSLOAD=$(cut -d " " -f1 /proc/loadavg | tr -d '.')
-fi
-    # System load of the current host.
-    echo $((10#$SYSLOAD))       # Convert to decimal.
+  else
+	SYSLOAD=$(cut -d " " -f1 /proc/loadavg | tr -d '.')
+  fi
+  # System load of the current host.
+  echo $((10#$SYSLOAD))       # Convert to decimal.
 }
 
 # Returns a color indicating system load.
@@ -345,11 +379,11 @@ if [[ ${freeExists} && ${freeExists-x} ]]; then
 	echo -en "${OPENB}${White}mem "
 
         if [ ${memcent} -lt 15 ]; then
-            echo -en ${BRed}           # Memory almost full (>95%).
+            echo -en ${BRed}		# Memory almost full (>95%).
         elif [ ${memcent} -lt 35 ]; then
-            echo -en ${BYellow}            # Memory space almost gone.
+            echo -en ${Yellow}		# Memory space almost gone.
         else
-            echo -en ${Green}           # Memory space is ok.
+            echo -en ${Green}		# Memory space is ok.
         fi
         echo -en "${memcent}${White}% free${CLOSEB}"
 fi
@@ -358,6 +392,9 @@ fi
 # Returns a color according to free disk space in $PWD.
 function disk_color()
 {
+    local diskloc="${PWD/$HOME/\~}"
+    diskloc="${diskloc//\//$White\/$Blue}"
+    echo -en $diskloc
     if [ ! -w "${PWD}" ] ; then
         echo -en ${Red}
 	echo -en " RO"
@@ -371,8 +408,8 @@ function disk_color()
                    awk 'END {print $5} {sub(/%/,"")}')
         if [ ${used} -gt 95 ]; then
             echo -en ${BRed}           # Disk almost full (>95%).
-        elif [ ${used} -gt 90 ]; then
-            echo -en ${BYellow}            # Free disk space almost gone.
+        elif [ ${used} -gt 80 ]; then
+            echo -en ${Yellow}            # Free disk space almost gone.
         else
             echo -en ${Green}           # Free disk space is ok.
         fi
@@ -425,16 +462,18 @@ if [ -d /sys/class/power_supply/${BATS} ]; then
         then
            CHARGE=100
         fi
- 
-        if [ "$CHARGE" -gt "15" ]
-        then
+
+        COLOUR="$Green"
+
+        if [ "$CHARGE" -lt "35" ]
+	then
            COLOUR="$Yellow"
         fi
- 
-        if [ "$CHARGE" -gt "30" ]
-        then
-           COLOUR="$Green"
+        if [ "$CHARGE" -lt "20" ]
+	then
+           COLOUR="$BRed"
         fi
+
 	if [[ ${BATSTAT} && ${BATSTAT-x} ]]; then 
 		BATSTAT=${BATSTAT}" "
 	fi
@@ -447,8 +486,13 @@ fi
 }
 
 # Now we construct the prompt.
-PROMPT_COMMAND="history -a"
+#PROMPT_COMMAND="history -a"
 
+#   if [ $(id -u) -eq 0 ]; then
+#      PS1="${debian_chroot:+($debian_chroot)}\n\[$BWhite\][\[$Yellow\]\@\[$BWhite\]] [\[$BRed\]\u\[$BPurple\]@\h\[$BWhite\]] [\[$BIBlue\]\w\[$BWhite\]]\[$Color_Off\]\n\$ "
+#   else
+#      PS1="${debian_chroot:+($debian_chroot)}\n\[$BWhite\][\[$Yellow\]\@\[$BWhite\]] [\[$BGreen\]\u\[$BPurple\]@\h\[$BWhite\]] [\[$BIBlue\]\w\[$BWhite\]]\[$Color_Off\]\n\$ "
+#   fi
 	#Error and History info
 	PS1="\n\[\$(error_result)\]"
 	# Shell Depth
@@ -469,7 +513,7 @@ PROMPT_COMMAND="history -a"
         # User@Host (with connection type info):
 	PS1=${PS1}"\[$OPENB\]\[${SU}\]\u\[$Color_Off\]@\[$Purple\]\h\[$CLOSEB\]"
         # PWD (with 'disk space' info):
-        PS1=${PS1}"\[$OPENB\]\[$IBlue\]\w\[\$(disk_color)\]\[$CLOSEB\]"
+        PS1=${PS1}"\[$OPENB\]\[$IBlue\]\[\$(disk_color)\]\[$CLOSEB\]"
 	PS1=${PS1}${CNX}
 	# new line and $ or #
 	PS1=${PS1}"\n\[$IYellow\]\$\[$Color_Off\] "
@@ -499,17 +543,39 @@ alias la='ls -A'
 alias l='ls -CF'
 alias dir='ls -la'
 alias df='df -h'
-alias yogurt=yaourt
 alias cls=clear
 alias ping='ping -c 4'
 alias diff='colordiff'
+alias perm='stat --printf "%a %n \n "'
 
 if [ $UID -ne 0 ]; then
 	alias reboot='sudo reboot'
 	alias shutdown='sudo shutdown -t 2 now -h'
+
+	Distro=$(cat /etc/*-release | grep ^NAME= | cut -d = -f2)
+
+	case "$Distro" in
+	    *untu* | *Mint* )
+        	alias update='sudo apt-get update && sudo apt-get upgrade'
+        	alias dist-update='sudo apt-get update && sudo apt-get dist-upgrade' 
+		alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
+		;;
+	    *edora* | *Cent* | *Red* )
+        	alias update='sudo yum upgrade'
+		alias nanobash='sudo nano /etc/profile.d/bash.sh --syntax=sh -w'
+		;;
+	    *Arch* )
+		alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
+        	alias update='sudo pacman -Syu'
+		alias pacman='sudo pacman'
+		alias yogurt=yaourt
+		;;
+	esac
+	unset Distro
 fi
 
 if [ "${OS}" == "Windows_NT" ]; then
 	alias sudo='echo -e "\nSudo is not available in CygWin. Use sudo-s instead."'
 	alias sudo-s='/usr/bin/cygstart --action=runas /usr/bin/mintty -e /usr/bin/bash --login'
 fi
+
