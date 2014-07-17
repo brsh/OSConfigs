@@ -150,30 +150,41 @@ On_IWhite='\e[0;107m'   # White
 ######################
 
 function list_colors {
-local T='gYw'     # the test text
-echo -e "\n        40m  100m 41m  101m 42m  102m 43m  103m\
+	local T=' gYw '     # the test text
+	local SPACER=""
+	local HEADER="40m  100m 41m  101m 42m  102m 43m  103m\
  44m  104m 45m  105m 46m  106m 47m  107m";
-
-for FGs in '    m' '   1m' \
-           '  30m' '2;30m' '1;30m' '4;30m' '7;30m' \
-           '  90m' '2;90m' '1;90m' '4;90m' '7;90m' \
-           '  31m' '2;31m' '1;31m' '4;31m' '7;31m' \
-           '  91m' '2;91m' '1;91m' '4;91m' '7;91m' \
-           '  32m' '2;32m' '1;32m' '4;32m' '7;32m' \
-           '  92m' '2;92m' '1;92m' '4;92m' '7;92m' \
-           '  33m' '2;33m' '1;33m' '4;33m' '7;33m' \
-           '  34m' '2;34m' '1;34m' '4;34m' '7;34m' \
-           '  35m' '2;35m' '1;35m' '4;35m' '7;35m' \
-           '  36m' '2;36m' '1;36m' '4;36m' '7;36m' \
-           '  37m' '2;37m' '1;37m' '4;37m' '7;37m';
-	do FG=${FGs// /}
-        echo -en " $FGs \033[$FG $T "
-	for BG in 40m 41m 101m 42m 102m 43m 103m 44m 104m 45m 105m 46m 106m 47m 107m;
-		do echo -en "$EINS\033[$FG\033[$BG $T \033[0m";
+	echo -e "\n           ${HEADER}"
+for effect in 0 1 2 4 5 7
+do #echo -en "${effect} "
+	for FGs in 'm' '1m' \
+           '30m' '90m' \
+           '31m' '91m' \
+           '32m' '92m' \
+           '33m' '93m' \
+           '34m' '94m' \
+           '35m' '95m' \
+           '36m' '96m' \
+           '37m' '97m' ;
+        do FG="${effect};${FGs}"
+		SPACER=$FG
+		if [ ${#SPACER} -lt 4 ]; then
+			SPACER="${FG}  "
+		fi
+		if [ ${#SPACER} -lt 5 ]; then
+			SPACER="${FG} "
+		fi
+        	echo -en "${SPACER}\e[$FG${T}"
+#        for BG in 40m 40m 41m 41m 101m 101m 42m 42m 102m 102m 43m 43m 103m 103m 44m 44m 104m 104m 45m 45m 105m 105m 46m 46m 106m 106m 47m 47m 107m 107m;
+        for BG in 40m 100m 41m 101m 42m 102m 43m 103m 44m 104m 45m 105m 46m 106m 47m 107m;
+                do echo -en "\e[$FG\e[${BG}${T}\e[0m";
+        done
+        echo;
 	done
-	echo;
+#echo;
 done
-echo
+echo -e "           ${HEADER}"
+#echo
 }
 
 function list_colors_256 {
@@ -487,12 +498,18 @@ fi
 
 # Now we construct the prompt.
 #PROMPT_COMMAND="history -a"
+PROMPT_COMMAND=prompt_big
 
-#   if [ $(id -u) -eq 0 ]; then
-#      PS1="${debian_chroot:+($debian_chroot)}\n\[$BWhite\][\[$Yellow\]\@\[$BWhite\]] [\[$BRed\]\u\[$BPurple\]@\h\[$BWhite\]] [\[$BIBlue\]\w\[$BWhite\]]\[$Color_Off\]\n\$ "
-#   else
-#      PS1="${debian_chroot:+($debian_chroot)}\n\[$BWhite\][\[$Yellow\]\@\[$BWhite\]] [\[$BGreen\]\u\[$BPurple\]@\h\[$BWhite\]] [\[$BIBlue\]\w\[$BWhite\]]\[$Color_Off\]\n\$ "
-#   fi
+function prompt_small {
+   if [ $(id -u) -eq 0 ]; then
+      PS1="${debian_chroot:+($debian_chroot)}\n\[$BWhite\][\[$Yellow\]\@\[$BWhite\]] [\[$Red\]\u\[$Purple\]@\h\[$BWhite\]] [\[$IBlue\]\w\[$BWhite\]]\[$Color_Off\]\n\$ "
+   else
+      PS1="${debian_chroot:+($debian_chroot)}\n\[$BWhite\][\[$Yellow\]\@\[$BWhite\]] [\[$Green\]\u\[$Purple\]@\h\[$BWhite\]] [\[$IBlue\]\w\[$BWhite\]]\[$Color_Off\]\n\$ "
+   fi
+   unset PROMPT_COMMAND
+}
+
+function prompt_big {
 	#Error and History info
 	PS1="\n\[\$(error_result)\]"
 	# Shell Depth
@@ -517,14 +534,14 @@ fi
 	PS1=${PS1}${CNX}
 	# new line and $ or #
 	PS1=${PS1}"\n\[$IYellow\]\$\[$Color_Off\] "
-
+}
 
 PS2="> "
 PS3="> "
 PS4="+ "
 
 # Try to keep environment pollution down, EPA loves us.
-unset safe_term match_lhs CNX SSH_IP SSH_NAME IP
+unset safe_term match_lhs
 
 #############
 ## Aliases ##
