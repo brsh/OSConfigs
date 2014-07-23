@@ -449,11 +449,15 @@ local BATSTAT=""
 for BATS in 'BAT0' 'BAT1' ; do
 if [ -d /sys/class/power_supply/${BATS} ]; then
         local BATTERY=/sys/class/power_supply/${BATS}
- 
-        local CHARGE=`cat $BATTERY/capacity`
-        local BATSTATE=`cat $BATTERY/status`
+ 		local CHARGE=""
+ 		local BATSTATE=""
+ 		if [ -a ${BATTERY}/capacity ]; then
+	        CHARGE=`cat $BATTERY/capacity`
+	    fi
+	    if [ -a ${BATTERY}/status ]; then
+	        BATSTATE=`cat $BATTERY/status`
+	    fi
         # Colors for humans
-
         local COLOUR="$Red"
 
         case "${BATSTATE}" in
@@ -572,20 +576,23 @@ if [ $UID -ne 0 ]; then
 	Distro=$(cat /etc/*-release | grep ^NAME= | cut -d = -f2)
 
 	case "$Distro" in
-	    *untu* | *Mint* )
+	    *buntu* | *Mint* | *ingu* | *etrunne* | *lementar* )
         	alias update='sudo apt-get update && sudo apt-get upgrade'
-        	alias dist-update='sudo apt-get update && sudo apt-get dist-upgrade' 
-		alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
+        	alias dist-upgrade='sudo apt-get update && sudo apt-get dist-upgrade'
+        	alias install='sudo apt-get install'
+        	alias autoremove='sudo apt-get autoremove'
+			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
 		;;
-	    *edora* | *Cent* | *Red* )
+	    *edora* | *Cent* | *Hat* | *oror* | *udunt* | *cientifi* )
         	alias update='sudo yum upgrade'
-		alias nanobash='sudo nano /etc/profile.d/bash.sh --syntax=sh -w'
+        	alias install='sudo yum install'
+			alias nanobash='sudo nano /etc/profile.d/bash.sh --syntax=sh -w'
 		;;
-	    *Arch* )
-		alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
+	    *Arch* | *anjar* | *ntergo* )
         	alias update='sudo pacman -Syu'
-		alias pacman='sudo pacman'
-		alias yogurt=yaourt
+			alias install='sudo pacman -S'
+			alias yogurt=yaourt
+			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
 		;;
 	esac
 	unset Distro
