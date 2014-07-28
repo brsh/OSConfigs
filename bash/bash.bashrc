@@ -229,12 +229,12 @@ function flag(){
 #[[ "$PS1" ]] && echo -e "$IYellow";/usr/bin/fortune -sa;echo -e "$Color_Off"
 # Test for Fortune and run it (games is ubuntu, bin is arch)
 if [[ "$PS1" ]] ; then
-        if [[ -x /usr/games/fortune ]]; then 
+        if [[ -x /usr/games/fortune ]]; then
                 echo -e "$IYellow";/usr/games/fortune -sa;echo -en "$Color_Off"
         fi
-        if [[ -x /usr/bin/fortune ]]; then 
+        if [[ -x /usr/bin/fortune ]]; then
                 echo -e "$IYellow";/usr/bin/fortune -sa;echo -en "$Color_Off"
-        fi 
+        fi
 fi
 
 # set an ugly prompt (non-color, overwrite the one in /etc/profile)
@@ -294,144 +294,6 @@ if [[ $'\n'${match_lhs} == *$'\n'"TERM "${safe_term}* ]] ; then
 
 fi
 
-OPENB="${IWhite}["
-CLOSEB="${IWhite}] "
-
-# Test connection type:
-if [ -n "${SSH_CONNECTION}" ]; then
-	## We're connected via SSH
-	CNX="\n${OPENB}${Green}SSH'd from "  # Connected on remote machine, via ssh (good)
-	SSH_IP=`echo $SSH_CONNECTION | awk '{print $1}'`
-	SSH_NAME=`echo $SSH_IP | nslookup | grep name | awk '{print $4}'`
-	if [ -n "${SSH_NAME}" ]; then
-		CNX=${CNX}${Purple}${SSH_NAME/%./}
-	else 
-		CNX=${CNX}${Purple}${SSH_IP}
-	fi
-	CNX=${CNX}${CLOSEB}
-fi
-
-# Test user type:
-if [[ ${USER} == "root" ]] || [[ -w /cygdrive/c/Windows ]]; then
-    SU=${Red}           # User is root.
-    if [[ $SUDO_USER && ${SUDO_USER-x} ]]; then
-	SU="$White($Green$SUDO_USER$White)$Red"
-    else
-	SU=${Red}
-    fi
-elif [[ ${USER} != $(logname) ]]; then
-    SU=${BRed}          # User is not login user.
-else
-    SU=${Green}         # User is normal (well ... most of us are).
-fi
-
-#Try to pull ip info (ip address and netmask)
-IP=$(which ip 2> /dev/null)
-if [[ ${IP} && ${IP-x} ]]; then
-	IP=`ip addr show | grep global | awk '{print $2}'`
-else
-	IP=$(route print | egrep "^ +0.0.0.0 +0.0.0.0 +" | gawk 'BEGIN { metric=255; ip="0.0.0.0"; } { if ( $5 < metric ) { ip=$4; metric=$5; } } END { printf("%s\n",ip); }')
-fi
-
-#try to pull ssid
-IPSSID=$(which iwgetid 2> /dev/null)
-if [[ $IPSSID && ${IPSSID-x} ]]; then
-	IPSSID=$(iwgetid -r)" "
-fi
-#put it all together
-if [[ $IP && ${IP-x} ]]; then
-	IP="\[$OPENB\]\[$Green\]$IPSSID\[$Yellow\]$IP\[$CLOSEB\]"
-fi
-
-#Set up for load monitoring
-NCPU=$(grep -c 'processor' /proc/cpuinfo)    # Number of CPUs
-SLOAD=$(( 100*${NCPU} ))        # Small load
-MLOAD=$(( 200*${NCPU} ))        # Medium load
-XLOAD=$(( 400*${NCPU} ))        # Xlarge load
-
-# Returns system load as percentage, i.e., '40' rather than '0.40)'.
-function load()
-{
-  local SYSLOAD=""
-  if [ "${OS}" == "Windows_NT" ]; then
-	SYSLOAD=$(typeperf "\Processor(_Total)\% Processor Time" -sc 1 | sed -n '3p' | cut -d , -f2 | tr -d \" | cut -d . -f1) 
-  else
-	SYSLOAD=$(cut -d " " -f1 /proc/loadavg | tr -d '.')
-  fi
-  # System load of the current host.
-  echo $((10#$SYSLOAD))       # Convert to decimal.
-}
-
-# Returns a color indicating system load.
-function load_color()
-{
-    local SYSLOAD=$(load)
-    if [ ${SYSLOAD} -gt ${XLOAD} ]; then
-        echo -en ${BRed}
-    elif [ ${SYSLOAD} -gt ${MLOAD} ]; then
-        echo -en ${Yellow}
-    elif [ ${SYSLOAD} -gt ${SLOAD} ]; then
-        echo -en ${IRed}
-    else
-        echo -en ${Green}
-    fi
-	echo -en $SYSLOAD
-}
-
-# Formating for memory
-function memory_color()
-{
-local freeExists=$(which free 2> /dev/null)
-if [[ ${freeExists} && ${freeExists-x} ]]; then
-	local memfree=`free -m | head -n 2 | tail -n 1 | awk {'print $4'}`
-	local memtotal=`free -m | head -n 2 | tail -n 1 | awk {'print $2'}`
-	local memcent=$(echo "scale=0; (100*$memfree/$memtotal)" | bc -l)
-
-	echo -en "${OPENB}${White}mem "
-
-        if [ ${memcent} -lt 15 ]; then
-            echo -en ${BRed}		# Memory almost full (>95%).
-        elif [ ${memcent} -lt 35 ]; then
-            echo -en ${Yellow}		# Memory space almost gone.
-        else
-            echo -en ${Green}		# Memory space is ok.
-        fi
-        echo -en "${memcent}${White}% free${CLOSEB}"
-fi
-}
-
-# Returns a color according to free disk space in $PWD.
-function disk_color()
-{
-    local diskloc="${PWD/$HOME/\~}"
-    diskloc="${diskloc//\//$White\/$Blue}"
-    echo -en $diskloc
-    if [ ! -w "${PWD}" ] ; then
-        echo -en ${Red}
-	echo -en " RO"
-        # No 'write' privilege in the current directory.
-    else
-	echo -en ${Green}
-	echo -en " RW"
-    fi
-    if [ -d "${PWD}" ] ; then
-        local used=$(command df -P "$PWD" |
-                   awk 'END {print $5} {sub(/%/,"")}')
-        if [ ${used} -gt 95 ]; then
-            echo -en ${BRed}           # Disk almost full (>95%).
-        elif [ ${used} -gt 80 ]; then
-            echo -en ${Yellow}            # Free disk space almost gone.
-        else
-            echo -en ${Green}           # Free disk space is ok.
-        fi
-	let used=100-$used
-	echo -en " $used$White% free"
-    else
-        echo -en ${Cyan}
-        # Current directory is size '0' (like /proc, /sys etc).
-    fi
-}
-
 #Returns error stuff
 function error_result()
 {
@@ -443,66 +305,9 @@ function error_result()
     echo -en ${Color_Off}
 }
 
-function battery_status()
-{
-local BATSTAT=""
-for BATS in 'BAT0' 'BAT1' ; do
-if [ -d /sys/class/power_supply/${BATS} ]; then
-        local BATTERY=/sys/class/power_supply/${BATS}
- 		local CHARGE=""
- 		local BATSTATE=""
- 		if [ -a ${BATTERY}/capacity ]; then
-	        CHARGE=`cat $BATTERY/capacity`
-	    fi
-	    if [ -a ${BATTERY}/status ]; then
-	        BATSTATE=`cat $BATTERY/status`
-	    fi
-        # Colors for humans
-        local COLOUR="$Red"
-
-        case "${BATSTATE}" in
-           'Charged')
-           BATSTT=""
-           ;;
-           'Charging')
-           BATSTT="${Green}+${Color_Off}"
-           ;;
-           'Discharging')
-           BATSTT="${Red}-${Color_Off}"
-           ;;
-        esac
-
-        # prevent a charge of more than 100% displaying
-        if [ "$CHARGE" -gt "99" ]
-        then
-           CHARGE=100
-        fi
-
-        COLOUR="$Green"
-
-        if [ "$CHARGE" -lt "35" ]
-	then
-           COLOUR="$Yellow"
-        fi
-        if [ "$CHARGE" -lt "20" ]
-	then
-           COLOUR="$BRed"
-        fi
-
-	if [[ ${BATSTAT} && ${BATSTAT-x} ]]; then 
-		BATSTAT=${BATSTAT}" "
-	fi
-        BATSTAT=${BATSTAT}"${COLOUR}${CHARGE}%"
-fi
-done
-if [[ ${BATSTAT} && ${BATSTAT-x} ]] ; then
-	echo -en "${OPENB}${BATSTT}${BATSTAT}${CLOSEB}"
-fi
-}
-
 # Now we construct the prompt.
 #PROMPT_COMMAND="history -a"
-PROMPT_COMMAND=prompt_big
+PROMPT_COMMAND=prompt_small
 
 function prompt_small {
    if [ $(id -u) -eq 0 ]; then
@@ -512,37 +317,6 @@ function prompt_small {
    fi
    unset PROMPT_COMMAND
 }
-
-function prompt_big {
-	#Error and History info
-	PS1="\n\[\$(error_result)\]"
-	# Shell Depth
-	PS1=${PS1}"\[$OPENB\]\[$White\]sh \[$Yellow\]\[\$SHLVL\]\[$CLOSEB\]"
-	# Load info
-	PS1=${PS1}"\[$OPENB\]\[$White\]ld \[\$(load_color)\]\[$CLOSEB\]"
-	# Memory Load info
-	PS1=${PS1}"\[\$(memory_color)\]"
-	# History
-	PS1=${PS1}"\[$OPENB\]\[$White\]h\[$Green\]\!\[$CLOSEB\]"
-	# IP
-	PS1=${PS1}"$IP"
-	# Battery
-	PS1=${PS1}"\[\$(battery_status)\]"
-	PS1=${PS1}"\n"
-        # Day and Time
-	PS1=${PS1}"\[$OPENB\]\[$Yellow\]\D{%a %I:%M%P}\[$CLOSEB\]"
-        # User@Host (with connection type info):
-	PS1=${PS1}"\[$OPENB\]\[${SU}\]\u\[$Color_Off\]@\[$Purple\]\h\[$CLOSEB\]"
-        # PWD (with 'disk space' info):
-        PS1=${PS1}"\[$OPENB\]\[$IBlue\]\[\$(disk_color)\]\[$CLOSEB\]"
-	PS1=${PS1}${CNX}
-	# new line and $ or #
-	PS1=${PS1}"\n\[$IYellow\]\$\[$Color_Off\] "
-}
-
-PS2="> "
-PS3="> "
-PS4="+ "
 
 # Try to keep environment pollution down, EPA loves us.
 unset safe_term match_lhs
@@ -577,29 +351,44 @@ if [ $UID -ne 0 ]; then
 
 	case "$Distro" in
 	    *buntu* | *Mint* | *ingu* | *etrunne* | *lementar* )
-        	alias update='sudo apt-get update && sudo apt-get upgrade'
-        	alias dist-upgrade='sudo apt-get update && sudo apt-get dist-upgrade'
-        	alias install='sudo apt-get install'
-        	alias autoremove='sudo apt-get autoremove'
-			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
+		alias update='sudo apt-get update && sudo apt-get upgrade'
+		alias dist-upgrade='sudo apt-get update && sudo apt-get dist-upgrade'
+		alias install='sudo apt-get install'
+		alias autoremove='sudo apt-get autoremove'
+		alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
 		;;
 	    *edora* | *Cent* | *Hat* | *oror* | *udunt* | *cientifi* )
-        	alias update='sudo yum upgrade'
+		alias update='sudo yum upgrade'
         	alias install='sudo yum install'
-			alias nanobash='sudo nano /etc/profile.d/bash.sh --syntax=sh -w'
+		alias nanobash='sudo nano /etc/profile.d/bash.sh --syntax=sh -w'
 		;;
 	    *Arch* | *anjar* | *ntergo* )
-        	alias update='sudo pacman -Syu'
-			alias install='sudo pacman -S'
-			alias yogurt=yaourt
-			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
+		alias update='sudo pacman -Syu'
+		alias install='sudo pacman -S'
+		alias yogurt=yaourt
+		alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
 		;;
 	esac
-	unset Distro
+	#unset Distro
 fi
 
 if [ "${OS}" == "Windows_NT" ]; then
 	alias sudo='echo -e "\nSudo is not available in CygWin. Use sudo-s instead."'
 	alias sudo-s='/usr/bin/cygstart --action=runas /usr/bin/mintty -e /usr/bin/bash --login'
+fi
+
+
+################
+## My Prompt  ##
+################
+if [[ -f /etc/mobprompt.sh ]]; then
+	source /etc/mobprompt.sh
+	alias nanoprompt='sudo nano /etc/mobprompt.sh --syntax=sh -w'
+elif [[ -f /shared/etc/mobprompt.sh ]]; then
+	source /shared/etc/mobprompt.sh
+	alias nanoprompt='sudo nano /shared/etc/mobprompt.sh --syntax=sh -w'
+elif [[ -f ~/mobprompt.sh ]]; then
+	source ~/mobprompt.sh ]]
+	alias nanoprompt='nano ~/mobprompt.sh --syntax=sh -w'
 fi
 
