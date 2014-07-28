@@ -222,6 +222,25 @@ function flag(){
     echo -e ${Color_Off}
 }
 
+function rtrim() {
+	local var=$@
+	var="${var%"${var##*[![:space:]]}"}"   # remove trailing whitespace characters
+	echo -n "$var"
+}
+
+function ltrim() {
+	local var=$@
+	var="${var#"${var%%[![:space:]]*}"}"   # remove leading whitespace characters
+	echo -n "$var"
+}
+
+function trim() {
+	local var=$@
+	var=$(ltrim "${var}")
+	var=$(rtrim "${var}")
+	echo -n "$var"
+}
+
 #################
 ## Basic Stuff ##
 #################
@@ -344,39 +363,39 @@ alias diff='colordiff'
 alias perm='stat --printf "%a %n \n "'
 
 if [ $UID -ne 0 ]; then
-	alias reboot='sudo reboot'
-	alias shutdown='sudo shutdown -t 2 now -h'
 
-	Distro=$(cat /etc/*-release | grep ^NAME= | cut -d = -f2)
+	if [ "${OS}" == "Windows_NT" ]; then
+		alias sudo='echo -e "\nSudo is not available in CygWin. Use sudo-s instead."'
+		alias sudo-s='/usr/bin/cygstart --action=runas /usr/bin/mintty -e /usr/bin/bash --login'
+		Distro="Windows"
+	else
+		alias reboot='sudo reboot'
+		alias shutdown='sudo shutdown -t 2 now -h'
 
-	case "$Distro" in
-	    *buntu* | *Mint* | *ingu* | *etrunne* | *lementar* )
-		alias update='sudo apt-get update && sudo apt-get upgrade'
-		alias dist-upgrade='sudo apt-get update && sudo apt-get dist-upgrade'
-		alias install='sudo apt-get install'
-		alias autoremove='sudo apt-get autoremove'
-		alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
-		;;
-	    *edora* | *Cent* | *Hat* | *oror* | *udunt* | *cientifi* )
-		alias update='sudo yum upgrade'
-        	alias install='sudo yum install'
-		alias nanobash='sudo nano /etc/profile.d/bash.sh --syntax=sh -w'
-		;;
-	    *Arch* | *anjar* | *ntergo* )
-		alias update='sudo pacman -Syu'
-		alias install='sudo pacman -S'
-		alias yogurt=yaourt
-		alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
-		;;
-	esac
-	#unset Distro
+		Distro=$(cat /etc/*-release | grep ^NAME= | cut -d = -f2)
+
+		case "$Distro" in
+			*buntu* | *Mint* | *ingu* | *etrunne* | *lementar* )
+				alias update='sudo apt-get update && sudo apt-get upgrade'
+				alias dist-upgrade='sudo apt-get update && sudo apt-get dist-upgrade'
+				alias install='sudo apt-get install'
+				alias autoremove='sudo apt-get autoremove'
+				alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
+			;;
+			*edora* | *Cent* | *Hat* | *oror* | *udunt* | *cientifi* )
+				alias update='sudo yum upgrade'
+        			alias install='sudo yum install'
+				alias nanobash='sudo nano /etc/profile.d/bash.sh --syntax=sh -w'
+			;;
+			*Arch* | *anjar* | *ntergo* )
+				alias update='sudo pacman -Syu'
+				alias install='sudo pacman -S'
+				alias yogurt=yaourt
+				alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
+			;;
+		esac
+	fi
 fi
-
-if [ "${OS}" == "Windows_NT" ]; then
-	alias sudo='echo -e "\nSudo is not available in CygWin. Use sudo-s instead."'
-	alias sudo-s='/usr/bin/cygstart --action=runas /usr/bin/mintty -e /usr/bin/bash --login'
-fi
-
 
 ################
 ## My Prompt  ##

@@ -116,7 +116,11 @@ function cpu_load()
 	local SYSLOAD
 	local comparo
 	#SYSLOAD=$(top -b -n2 -d 0.1 | fgrep "Cpu(s)" | tail -1 | awk -F'id,' -v prefix="$prefix" '{ split($1, vs, ","); v=vs[length(vs)]; sub("%", "", v); printf "%s%.1f\n", prefix, 100 - v }')
-	SYSLOAD=$(top -b -n2 -d 0.1 | fgrep "Cpu(s)" | tail -1 | cut -d , -f4 | cut -d " " -f2 | awk '{ print 100-$1}' )
+	SYSLOAD=$(top -b -n2 -d 0.1 | fgrep "Cpu(s)" | tail -1 | cut -d , -f4)
+	SYSLOAD=$(trim "${SYSLOAD}")
+	SYSLOAD=$(echo -n ${SYSLOAD} | cut -d " " -f1 | awk '{ print 100-$1}' )
+
+# cut -d " " -f2 | awk '{ print 100-$1}' )
 	if [[ ${SYSLOAD} && ${SYSLOAD-x} ]]; then
 		## another option: echo $var | awk '{print int($1+0.5)}'
 		retval="${White}cpu "
