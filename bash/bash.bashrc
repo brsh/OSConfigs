@@ -200,7 +200,7 @@ echo -e "           ${HEADER}"
 function list_colors_256 {
 ## FG Format: <Esc>[38;5;COLORm
 ## BF Format: <Esc>[48;5;COLORm
-for fgbg in 38 48 ; do 
+for fgbg in 38 48 ; do
 	for color in {0..256} ; do
 		echo -en "\e[${fgbg};5;${color}m ${color}\t\e[0m"
 		if [ $((($color + 1) % 10)) == 0 ] ; then
@@ -232,6 +232,13 @@ function flag(){
     echo -e ${Color_Off}
 }
 
+function boxit() {
+t="$1xxxx";c=${2:-#};
+	echo "${t//?/$c}
+$c $1 $c
+${t//?/$c}"
+}
+
 function rtrim() {
 	local var=$@
 	var="${var%"${var##*[![:space:]]}"}"   # remove trailing whitespace characters
@@ -251,6 +258,44 @@ function trim() {
 	echo -n "$var"
 }
 
+function to_roman() {
+	echo ${1} | sed -e 's/1...$/M&/;s/2...$/MM&/;s/3...$/MMM&/;s/4...$/MMMM&/
+		s/6..$/DC&/;s/7..$/DCC&/;s/8..$/DCCC&/;s/9..$/CM&/
+		s/1..$/C&/;s/2..$/CC&/;s/3..$/CCC&/;s/4..$/CD&/;s/5..$/D&/
+		s/6.$/LX&/;s/7.$/LXX&/;s/8.$/LXXX&/;s/9.$/XC&/
+		s/1.$/X&/;s/2.$/XX&/;s/3.$/XXX&/;s/4.$/XL&/;s/5.$/L&/
+		s/1$/I/;s/2$/II/;s/3$/III/;s/4$/IV/;s/5$/V/
+		s/6$/VI/;s/7$/VII/;s/8$/VIII/;s/9$/IX/
+		s/[0-9]//g'
+}
+
+function ls_groups() {
+	#ls the groups of files/dirs
+	ls -l --group-directories-first ${@} | grep -v ^total | gawk '{print $9, "Group ->", $4}' | column -t
+}
+
+function ls_users() {
+	#ls the owners of files/dirs
+	ls -l --group-directories-first "$@" | grep -v ^total | gawk '{print $9, "User ->", $3}' | sed -e '1d' | column -t
+}
+
+function ls_perms() {
+	#ls the perms of files/dirs
+	if [[ ! "$@" == "" ]]; then
+		for file in "$@"; do
+			stat -c "%A %a %n" "$file" | gawk '{print $3, "->", $1, "("$2")"}'
+		done | column -t
+	fi
+}
+
+function reload_bash() {
+	builtin unalias -a
+	builtin unset -f $(builtin declare -F | sed 's/^.*declare[[:blank:]]\+-f[[:blank:]]\+//')
+	source /etc/bash.bashrc
+}
+
+
+
 #################
 ## Basic Stuff ##
 #################
@@ -259,25 +304,15 @@ function trim() {
 # Test for Fortune and run it (games is ubuntu, bin is arch)
 if [[ "$PS1" ]] ; then
         if [[ -x /usr/games/fortune ]]; then
-                echo -e "$IYellow";/usr/games/fortune -sa;echo -en "$Color_Off"
-        fi
-        if [[ -x /usr/bin/fortune ]]; then
-                echo -e "$IYellow";/usr/bin/fortune -sa;echo -en "$Color_Off"
+#                echo -e "\n${Yellow}";/usr/games/fortune -sa;echo -en "$Color_Off"
+                echo -e "\n${Yellow}$(/usr/games/fortune -sa)${Color_Off}"
+        elif [[ -x /usr/bin/fortune ]]; then
+                echo -e "\n${Yellow}$(/usr/bin/fortune -sa)${Color_Off}"
         fi
 fi
 
 # set an ugly prompt (non-color, overwrite the one in /etc/profile)
 PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
-
-#Set the window title
-#case ${TERM} in
-#	xterm*|rxvt*|Eterm|aterm|kterm|gnome*)
-#		PROMPT_COMMAND=${PROMPT_COMMAND:+$PROMPT_COMMAND; }'printf "\033]0;%s@%s:%s\007" "${USER}" "${HOSTNAME%%.*}" "${PWD/#$HOME/~}"'
-#		;;
-#	screen)
-#		PROMPT_COMMAND=${PROMPT_COMMAND:+$PROMPT_COMMAND; }'printf "\033_%s@%s:%s\033\\" "${USER}" "${HOSTNAME%%.*}" "${PWD/#$HOME/~}"'
-#		;;
-#esac
 
 #coloring LESS
 export LESS=-IR

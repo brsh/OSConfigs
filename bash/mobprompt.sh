@@ -25,17 +25,18 @@ test -z "${TERM}" -o "x${TERM}" = dumb && return
 
 OPENB="${IWhite}["
 CLOSEB="${IWhite}]"
+FillChar="─"
 case "$TERM" in
 	linux)
-		FillChar="-"
 		battdn="-"
 		battup="+"
 	;;
 	*)
-		FillChar="\e(0q\e(B"
-		battdn="↓"
-		battup="↑"
-
+#		FillChar="\e(0q\e(B"
+#		battdn="↓"
+#		battup="↑"
+		battdn="▼"
+		battup="▲"
 	;;
 esac
 
@@ -177,13 +178,56 @@ function memory_load()
 	fi
 }
 
+function get_uptime() {
+	local uptime=$(</proc/uptime)
+	local timeused=${uptime%%.*}
+	local daysused=0
+	local hoursused=0
+	local minutesused=0
+	local secondsused=0
+	local retval="up "
+
+	if [[ ${timeused} && ${timeused-x} ]]; then
+		if (( timeused > 86400 )); then
+			((
+				daysused=timeused/86400,
+				hoursused=timeused/3600-daysused*24,
+				minutesused=timeused/60-hoursused*60-daysused*60*24,
+				secondsused=timeused-minutesused*60-hoursused*3600-daysused*3600*24
+			))
+		elif (( timeused < 3600 )); then
+			((
+			minutesused=timeused/60,
+			secondsused=timeused-minutesused*60
+		))
+		elif (( timeused < 86400 )); then
+			((
+			hoursused=timeused/3600,
+			minutesused=timeused/60-hoursused*60,
+			secondsused=timeused-minutesused*60-hoursused*3600
+			))
+		fi
+
+		retval=${retval}"${Green}${daysused}${White}d "
+		retval=${retval}"${Green}${hoursused}${White}h:"
+		retval=${retval}"${Green}$(echo ${minutesused} | sed -e :a -e 's/^.\{1,1\}$/0&/;ta' )${White}m:"
+		retval=${retval}"${Green}$(echo ${secondsused} | sed -e :a -e 's/^.\{1,1\}$/0&/;ta' )${White}s"
+
+		echo -n ${retval}
+	fi
+}
+
 function load_util()
 {
 	local retval=""
 	local batstat=$(battery_status)
+	local upt=$(get_uptime)
 	retval="$(cpu_load) $(memory_load)"
 	if [[ ${batstat} && ${batstat-x} ]]; then
 		retval="${retval} ${batstat}"
+	fi
+	if [[ ${upt} && ${upt-x} ]]; then
+		retval="${retval} ${upt}"
 	fi
 	echo -n "${OPENB}${retval}${CLOSEB}"
 }
@@ -231,10 +275,36 @@ function pwd_counts()
 	retval=${retval}"${White}/${Green}${dirreg} "
 	retval=${retval}"${White}./${Green}${dirhid} "
 	retval=${retval}"${White}-${Green}${filesreg} "
-	retval=${retval}"${White}-.${Green}${fileshid} "
+	retval=${retval}"${White}.-${Green}${fileshid} "
 	retval=${retval}"${White}-*${Green}${filesexe} "
 	echo -n ${retval}
 }
+
+function pwd_size() {
+	local TotalBytes
+	let TotalBytes=0
+
+	for Bytes in $(\ls -lA -1 | grep "^-" | awk '{ print $5 }'); do
+		let TotalBytes=$TotalBytes+$Bytes
+	done
+
+	if [ $TotalBytes -lt 1024 ]; then
+		TotalSize=$(echo -e "scale=1 \n$TotalBytes \nquit" | bc)
+		suffix="B"
+	elif [ $TotalBytes -lt 1048576 ]; then
+		TotalSize=$(echo -e "scale=1 \n$TotalBytes/1024 \nquit" | bc)
+		suffix="KB"
+	elif [ $TotalBytes -lt 1073741824 ]; then
+		TotalSize=$(echo -e "scale=1 \n$TotalBytes/1048576 \nquit" | bc)
+		suffix="MB"
+	else
+		TotalSize=$(echo -e "scale=1 \n$TotalBytes/1073741824 \nquit" | bc)
+		suffix="GB"
+	fi
+
+	echo "${TotalSize} ${suffix}"
+}
+
 
 
 #Returns error stuff
@@ -313,15 +383,23 @@ function get_history()
 	echo -n ${retval}
 }
 
-#function get_tty()
-#{
-#	local splay=$(tty | sed -e 's:/dev/::' 
-#	# | sed -e 's:pts/:${White}pts${Green}:' | sed -e 's:tty:${White}tty${Green}:'))
-#	
-
-
-#	echo -n retval
-#}
+function get_tty()
+{
+	local splay=$(tty | sed -e 's:/dev/::')
+	local retval=""
+	case "${splay}" in
+		tty* )
+			retval=${White}tty${Green}$(echo -en ${splay} | sed -e 's:tty::' )
+		;;
+		pts* )
+			retval=${White}pts${Green}$(echo -en ${splay}| sed -e 's:pts/::' )
+		;;
+		* )
+			retval=${White}${splay}
+		;;
+	esac
+	echo -n ${retval}
+}
 
 function fill_line() {
 	local fillsize
@@ -411,9 +489,7 @@ function prompt_big {
 	# History
 	leftstuff=${leftstuff}"${White}h${Green}$(get_history) " #${CLOSEB}"
 	# Terminal type and number
-	leftstuff=${leftstuff}"${White}$(tty | sed -e 's:/dev/::')"
-#	leftstuff=${leftstuff}"$(echo -e $(tty | sed -e 's:/dev/::' | sed -e 's:pts/:${White}pts${Green}:' | sed -e 's:tty:${White}tty${Green}:'))"
-
+	leftstuff=${leftstuff}$(get_tty)
 	leftstuff=${leftstuff}${CLOSEB}
 
 	leftstuff=${leftstuff}${LineColor}${FillChar}
@@ -463,19 +539,19 @@ function prompt_big {
 	#Line 3 (maybe)
 	IsItSSH=$(GetSSHConnection)
 	local cleanIsIt=$(cleanesc ${IsItSSH})
-#	local adjpwd="${PWD/$HOME/\~}"
 	if [[ ${IsItSSH} && ${IsItSSH-x} ]]; then
 		rightstuff=${rightstuff}${IsItSSH}
 		filled=$(fill_line ${leftstuff}${rightstuff})
 		outstuff=${outstuff}${leftstuff}${LineColor}${filled}${rightstuff}
-		#Set the terminal title
-#####DOESN"T WORK ON NON-X TERM
-		echo -ne "\033]0;${cleanIsIt} ${USER}@${HOSTNAME}: ${PWD/$HOME/\~}\007"
+		#Set the terminal title (skip linux terms)
+		if [[ ! $TERM == "linux" ]]; then
+			echo -ne "\033]0;${cleanIsIt} ${USER}@${HOSTNAME}: ${PWD/$HOME/\~}\007"
+		fi
 	else
-		#Set the terminal title
-#####DOESN"T WORK ON NON-X TERM
-		echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD/$HOME/\~}\007"
-
+		#Set the terminal title (skip linux terms)
+		if [[ ! $TERM == "linux" ]]; then
+			echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD/$HOME/\~}\007"
+		fi
 	fi
 
 	#Reset the fill character
