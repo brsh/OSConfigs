@@ -18,18 +18,27 @@
 # If not running interactively, don't do anything
 test -z "${TERM}" -o "x${TERM}" = dumb && return
 
-########################
-##      CONSTANTS     ##
-########################
+##########################
+##      CONSTANTS       ##
+## and initial settings ##
+##########################
 
 OPENB="${IWhite}["
-CLOSEB="${IWhite}] "
+CLOSEB="${IWhite}]"
+case "$TERM" in
+	linux)
+		FillChar="-"
+		battdn="-"
+		battup="+"
+	;;
+	*)
+		FillChar="\e(0q\e(B"
+		battdn="↓"
+		battup="↑"
 
-#Set up for load monitoring
-#NCPU=$(grep -c 'processor' /proc/cpuinfo)    # Number of CPUs
-#SLOAD=$(( 100*${NCPU} ))        # Small load
-#MLOAD=$(( 200*${NCPU} ))        # Medium load
-#XLOAD=$(( 400*${NCPU} ))        # Xlarge load
+	;;
+esac
+
 
 ########################
 ##     FUNCTIONS      ##
@@ -39,18 +48,25 @@ function GetSSHConnection {
 # Test connection type:
 if [ -n "${SSH_CONNECTION}" ]; then
 	## We're connected via SSH
-	local retval="\n${OPENB}${Green}SSH'd from "  # Connected on remote machine, via ssh (good)
+	local retval="${OPENB}${Green}SSH'd from "  # Connected on remote machine, via ssh (good)
 	local SSH_IP=`echo ${SSH_CONNECTION} | awk '{print $1}'`
 	local SSH_NAME=`echo ${SSH_IP} | nslookup | grep name | awk '{print $4}'`
+	local hostip=""
 	if [ -n "${SSH_NAME}" ]; then
-		retval=${retval}${Purple}${SSH_NAME/%./}
+#		retval=${retval}${Purple}$(echo ${SSH_NAME} | cut -d . -f1)
+		hostip=$(echo ${SSH_NAME} | cut -d . -f1)
 	else
-		retval=${retval}${Purple}${SSH_IP}
+#		retval=${retval}${Purple}${SSH_IP}
+		hostip=${SSH_IP}
 	fi
-	retval=${retval}${CLOSEB}
+	retval=${retval}${Purple}${hostip}${CLOSEB}
 	#LIBGL_ALWAYS_INDIRECT=1 allows "local" opengl rendering
 	export LIBGL_ALWAYS_INDIRECT=1
-	echo -e ${retval}
+	#For setting the terminal title
+	IsSoSSH="ssh'd to ${hostip} as ${USER}"
+	echo -n ${retval}
+else
+	IsSoSSH=""
 fi
 }
 
@@ -61,18 +77,21 @@ function GetUserColor {
 # 	C:\Windows will be writable with Windows (via cygwin)
 	local retval=${Yellow}	# Default to caution... we just don't know who you are
 	if [[ ${USER} == "root" ]] || [[ ${UID} -eq 0 ]] || [[ -w /cygdrive/c/Windows ]]; then
-		retval=${Red}           # User is root.
+		retval="${White}(${Green}$(logname)" # User is root
 		if [[ ${SUDO_USER} && ${SUDO_USER-x} ]]; then
-			retval="${White}(${Green}${SUDO_USER}${White})${Red}"
+			retval=${retval}"${White} sudo'd as"
 		else
-			retval=${Red}
+			retval=${retval}"${White} su'd as"
 		fi
+			retval=${retval}"${White}) ${Red}"
+
 	elif [[ ${USER} != $(logname) ]]; then
 		retval=${BRed}          # Alert: User is not login user.
 	else
 		retval=${Green}         # User is normal (yay!).
 	fi
-	echo -e ${retval}
+	retval=${retval}${USER}
+	echo -n ${retval}
 }
 
 function GetNetwork {
@@ -107,7 +126,7 @@ function GetNetwork {
 	        fi
 		retval=${retval}${Yellow}${IP}${CLOSEB}
 	fi
-	echo -e ${retval}
+	echo -n ${retval}
 }
 
 function cpu_load()
@@ -115,12 +134,10 @@ function cpu_load()
 	local retval
 	local SYSLOAD
 	local comparo
-	#SYSLOAD=$(top -b -n2 -d 0.1 | fgrep "Cpu(s)" | tail -1 | awk -F'id,' -v prefix="$prefix" '{ split($1, vs, ","); v=vs[length(vs)]; sub("%", "", v); printf "%s%.1f\n", prefix, 100 - v }')
 	SYSLOAD=$(top -b -n2 -d 0.1 | fgrep "Cpu(s)" | tail -1 | cut -d , -f4)
 	SYSLOAD=$(trim "${SYSLOAD}")
 	SYSLOAD=$(echo -n ${SYSLOAD} | cut -d " " -f1 | awk '{ print 100-$1}' )
 
-# cut -d " " -f2 | awk '{ print 100-$1}' )
 	if [[ ${SYSLOAD} && ${SYSLOAD-x} ]]; then
 		## another option: echo $var | awk '{print int($1+0.5)}'
 		retval="${White}cpu "
@@ -134,7 +151,7 @@ function cpu_load()
 		fi
 		retval="${retval}${SYSLOAD}${White}%"
 	fi
-	echo -en ${retval}
+	echo -n ${retval}
 }
 
 # Formating for memory
@@ -156,15 +173,19 @@ function memory_load()
 	        else
         	    retval=${retval}${Green}		# Memory space is ok.
 	        fi
-        	echo -en "${retval}${memcent}${White}%"
+        	echo -n "${retval}${memcent}${White}%"
 	fi
 }
 
 function load_util()
 {
 	local retval=""
+	local batstat=$(battery_status)
 	retval="$(cpu_load) $(memory_load)"
-	echo -en "${OPENB}${retval}${CLOSEB}"
+	if [[ ${batstat} && ${batstat-x} ]]; then
+		retval="${retval} ${batstat}"
+	fi
+	echo -n "${OPENB}${retval}${CLOSEB}"
 }
 
 # Returns a color according to free disk space in $PWD.
@@ -180,6 +201,7 @@ function path_info()
 	fi
 
 	if [ -d "${PWD}" ] ; then
+		retval=${retval}" ${White}free"
         	local used=$(command df -P "$PWD" | awk 'END {print $5} {sub(/%/,"")}')
 		if [ ${used} -gt 95 ]; then
 			retval=${retval}${BRed}           # Disk almost full (>95%).
@@ -189,22 +211,41 @@ function path_info()
 			retval=${retval}${Green}           # Free disk space is ok.
 		fi
 		let used=100-${used}
-		retval=${retval}" $used$White% free"
+		retval=${retval}" $used$White% #:$(pwd_counts)"
 	#else
         	# Current directory is size '0' (like /proc, /sys etc).
 	fi
-	echo -en ${retval}
+	echo -n ${retval}
 }
+
+function pwd_counts()
+{
+	local filesreg=$(ls -p1 2> /dev/null | grep -v ^l | grep -v / | wc -l)
+	local fileshid=$(ls -ld .[^.]* 2> /dev/null | grep -v ^l | grep -v / | wc -l)
+	local filesexe=$(ls -FA1 2> /dev/null | grep \* | wc -l)
+#	local dirreg=$(ls -p1 2> /dev/null | grep -v ^l | grep / | wc -l)
+	local dirreg=$(ls -l 2> /dev/null | grep ^d | wc -l)
+	local dirhid=$(ls -ld .[^.]* 2> /dev/null | grep -v ^l | grep / | wc -l)
+
+	local retval=""
+	retval=${retval}"${White}/${Green}${dirreg} "
+	retval=${retval}"${White}./${Green}${dirhid} "
+	retval=${retval}"${White}-${Green}${filesreg} "
+	retval=${retval}"${White}-.${Green}${fileshid} "
+	retval=${retval}"${White}-*${Green}${filesexe} "
+	echo -n ${retval}
+}
+
 
 #Returns error stuff
 function error_result()
 {
-    local Last_Command=$?
-
-    if [[ ! $Last_Command == 0 ]]; then
-        echo -en "${IWhite}[e${Red}${Last_Command}${IWhite}] "
-    fi
-    echo -en ${Color_Off}
+	local Last_Command=$?
+	local retval
+	if [[ ! $Last_Command == 0 ]]; then
+		retval="${OPENB}e${Red}${Last_Command}${CLOSEB}"
+	fi
+    echo -n ${retval}
 }
 
 
@@ -230,10 +271,10 @@ function battery_status()
 					BATSTT=""
 				;;
 				'Charging')
-					BATSTT="${Green}↑${Color_Off} "
+					BATSTT="${Green}${battup}${Color_Off} "
 				;;
 				'Discharging')
-					BATSTT="${Red}↓${Color_Off}"
+					BATSTT="${Red}${battdn}${Color_Off}"
 				;;
 			esac
 
@@ -258,78 +299,193 @@ function battery_status()
 		fi
 	done
 	if [[ ${retval} && ${retval-x} ]] ; then
-		echo -en " ${OPENB}${BATSTT}${retval}${CLOSEB}"
+		echo -n "${White}${BATSTT}${retval}${Color_Off}"
 	fi
 }
 
-##Runtime of the last command
-#RUNTIME_LAST_SECONDS=$SECONDS
-
-#function RunTime()
-#{
-#        # display runtime seconds as days, hours, minutes, and seconds
-#        [[ "$RUNTIME_SECONDS" -ge 86400 ]] && echo -ne $((RUNTIME_SECONDS / 86400))d
-#        [[ "$RUNTIME_SECONDS" -ge 3600 ]] && echo -ne $((RUNTIME_SECONDS % 86400 / 3600))h
-#        [[ "$RUNTIME_SECONDS" -ge 60 ]] && echo -ne $((RUNTIME_SECONDS % 3600 / 60))m
-#        echo -ne $((RUNTIME_SECONDS % 60))s
-#        echo -ne "${NO_COL}"
-#    fi
-#}
-#
-#function Reset_RunTime()
-#{
-#    # Compute number of seconds since program was started
-#    RUNTIME_SECONDS=$((SECONDS - RUNTIME_LAST_SECONDS))
-#
-#    # If no proper command was executed (i.e., someone pressed enter without entering a command),
-#    # reset the runtime counter
-#    [ "$RUNTIME_COMMAND_EXECUTED" != 1 ] && RUNTIME_LAST_SECONDS=$SECONDS && RUNTIME_SECONDS=0
-#
-#    # A proper command has been executed if the last command was not related to liquidprompt
-#    [ "$BASH_COMMAND" = set_prompt ] && RUNTIME_COMMAND_EXECUTED=0 && return
-#    RUNTIME_COMMAND_EXECUTED=1
-#}
-#
-#    # _lp_reset_runtime gets called whenever bash executes a command
-#    trap 'Reset_RunTime' DEBUG
-
-
-# Now ... the prompt.
-#PROMPT_COMMAND="history -a"	# remembers history across all sessions
-PROMPT_COMMAND=prompt_big
-
-function prompt_small {
-   if [ $(id -u) -eq 0 ]; then
-      PS1="${debian_chroot:+($debian_chroot)}\n\[$BWhite\][\[$Yellow\]\@\[$BWhite\]] [\[$Red\]\u\[$Purple\]@\h\[$BWhite\]] [\[$IBlue\]\w\[$BWhite\]]\[$Color_Off\]\n\$ "
-   else
-      PS1="${debian_chroot:+($debian_chroot)}\n\[$BWhite\][\[$Yellow\]\@\[$BWhite\]] [\[$Green\]\u\[$Purple\]@\h\[$BWhite\]] [\[$IBlue\]\w\[$BWhite\]]\[$Color_Off\]\n\$ "
-   fi
-   unset PROMPT_COMMAND
+function get_history()
+{
+	local retval
+	retval=$(history | tail -1)
+	retval=$(trim ${retval})
+	retval=$(echo -n ${retval} | cut -d " " -f1)
+	let retval=${retval}+1
+	echo -n ${retval}
 }
 
+#function get_tty()
+#{
+#	local splay=$(tty | sed -e 's:/dev/::' 
+#	# | sed -e 's:pts/:${White}pts${Green}:' | sed -e 's:tty:${White}tty${Green}:'))
+#	
+
+
+#	echo -n retval
+#}
+
+function fill_line() {
+	local fillsize
+	local cleanedup=$(cleanesc ${*})
+	let fillsize=${COLUMNS}-${#cleanedup} 
+	local fill=""
+	while [ "${fillsize}" -gt 0 ]
+	do
+		fill="${fill}${FillChar}"
+		let fillsize=${fillsize}-1
+	done
+	echo -n "${fill}"
+}
+
+function cleanesc() {
+	local retval=$(echo -n $* | sed "s,\e\[[0-9;]*[a-zA-Z],,g" | sed "s,\\\,,g" | sed "s,e(0qe(B, ,g")
+	echo "$retval"
+}
+
+function color_of_time() {
+	local retval
+	case "${2}" in
+		a*)
+			case "${1}" in
+				12 | 1 | 2 | 3 | 4 )
+					retval=${IBlack}
+			;;
+				5 | 6 | 7 )
+					retval=${White}
+			;;
+				8 | 9 | 10 )
+					retval=${Yellow}
+			;;
+				11 )
+					retval=${IYellow}
+			;;
+				* )
+					retval=${Purple}
+			;;
+			esac
+		;;
+		p*)
+			case "${1}" in
+				8 | 9 | 10 | 11 )
+					retval=${IBlack}
+			;;
+				5 | 6 | 7 )
+					retval=${White}
+			;;
+				2 | 3 | 4 )
+					retval=${Yellow}
+			;;
+				12 | 1 )
+					retval=${IYellow}
+			;;
+				* )
+					retval=${Purple}
+			;;
+			esac
+		;;
+		* )
+			retval=${Purple}
+		;;
+		esac
+	echo -n ${retval}
+}
+
+# Now ... the prompt.
+PROMPT_COMMAND=prompt_big
+
 function prompt_big {
-	#Error and History info
-	PS1="\n\[\$(error_result)\]"
-	# Shell Depth
-	PS1=${PS1}"\[$OPENB\]\[$White\]sh \[$Yellow\]\[\$SHLVL\]\[$CLOSEB\]"
-	# CPU and memory stats
-	PS1=${PS1}"\[\$(load_util)\]"
+	ErrLevel=$(error_result)
+
+	local leftstuff=""
+	local rightstuff=""
+	local outstuff=""
+	local LineColor=${IWhite}
+	#Create holder variable to be able to get console size
+	#The error from the last command - sets the line color to red 
+	if [[ ${ErrLevel} && ${ErrLevel-x} ]]; then
+		LineColor=${Red}
+		#leftstuff=${leftstuff}"\${ErrLevel}${LineColor}${FillChar}"
+	fi
+	#Shell depth
+	leftstuff=${leftstuff}"${OPENB}${White}sh${Green}${SHLVL} "
+	#leftstuff=${leftstuff}${LineColor}${FillChar}
 	# History
-	PS1=${PS1}"\[$OPENB\]\[$White\]h\[$Green\]\!\[$CLOSEB\]"
-	# IP
-	PS1=${PS1}"\[$(GetNetwork)\]"
-	# Battery
-	PS1=${PS1}"\[\$(battery_status)\]"
-	PS1=${PS1}"\n"
-        # Day and Time
-	PS1=${PS1}"\[$OPENB\]\[$Yellow\]\D{%a %I:%M%P}\[$CLOSEB\]"
-        # User@Host (with connection type info):
-	PS1=${PS1}"\[$OPENB\]\[$(GetUserColor)\]\u\[$Color_Off\]@\[$Purple\]\h\[$CLOSEB\]"
+	leftstuff=${leftstuff}"${White}h${Green}$(get_history) " #${CLOSEB}"
+	# Terminal type and number
+	leftstuff=${leftstuff}"${White}$(tty | sed -e 's:/dev/::')"
+#	leftstuff=${leftstuff}"$(echo -e $(tty | sed -e 's:/dev/::' | sed -e 's:pts/:${White}pts${Green}:' | sed -e 's:tty:${White}tty${Green}:'))"
+
+	leftstuff=${leftstuff}${CLOSEB}
+
+	leftstuff=${leftstuff}${LineColor}${FillChar}
+
+	# CPU, memory, and battery stats
+	rightstuff=${rightstuff}"$(load_util)"
+	rightstuff=${rightstuff}${LineColor}${FillChar}
+
+	# Day and Time
+	local holdday=$(date +'%a')
+	local holdhour=$(date +'%_I')
+	holdhour=$(trim ${holdhour})
+	local holdmin=$(date +'%M')
+	local holdmeri=$(date +'%P')
+	local colortime=$(color_of_time ${holdhour} ${holdmeri})
+	rightstuff=${rightstuff}"${OPENB}${Green}${holdday} ${colortime}${holdhour}${White}:${colortime}${holdmin}${holdmeri}${CLOSEB}"
+
+	#Line to right justify
+	local filled=$(fill_line ${leftstuff}${rightstuff})
+	outstuff=${leftstuff}${LineColor}${filled}${rightstuff}
+
+	outstuff=${outstuff}"\n"
+	leftstuff=""
+	rightstuff=""
+
+	#Line 2
         # PWD (with 'disk space' info):
-        PS1=${PS1}"\[$OPENB\]\[$IBlue\]\[\$(path_info)\]\[$CLOSEB\]"
-	PS1=${PS1}"\[\$(GetSSHConnection)\]"
+        leftstuff=${leftstuff}"${OPENB}${IBlue}$(path_info)${CLOSEB}"
+	leftstuff=${leftstuff}${LineColor} #${FillChar}
+ 	# IP
+	rightstuff=${rightstuff}"$(GetNetwork)"
+	rightstuff=${rightstuff}${LineColor}${FillChar}
+        # User@Host (with connection type info):
+	rightstuff=${rightstuff}"${OPENB}$(GetUserColor)${White}@${Purple}${HOSTNAME}${CLOSEB}"
+#	rightstuff=${leftstuff}${LineColor}${FillChar}
+	#Line to right justify
+	local FillCharTemp=${FillChar}
+	FillChar=" "
+	filled=$(fill_line ${leftstuff}${rightstuff})
+	outstuff=${outstuff}${leftstuff}${LineColor}${filled}${rightstuff}
+
+	#FillChar=${FillCharTemp}
+
+	rightstuff=""
+	leftstuff=""
+
+	#Line 3 (maybe)
+	IsItSSH=$(GetSSHConnection)
+	local cleanIsIt=$(cleanesc ${IsItSSH})
+#	local adjpwd="${PWD/$HOME/\~}"
+	if [[ ${IsItSSH} && ${IsItSSH-x} ]]; then
+		rightstuff=${rightstuff}${IsItSSH}
+		filled=$(fill_line ${leftstuff}${rightstuff})
+		outstuff=${outstuff}${leftstuff}${LineColor}${filled}${rightstuff}
+		#Set the terminal title
+#####DOESN"T WORK ON NON-X TERM
+		echo -ne "\033]0;${cleanIsIt} ${USER}@${HOSTNAME}: ${PWD/$HOME/\~}\007"
+	else
+		#Set the terminal title
+#####DOESN"T WORK ON NON-X TERM
+		echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD/$HOME/\~}\007"
+
+	fi
+
+	#Reset the fill character
+	FillChar=${FillCharTemp}
+
+	#The Actual Prompt!
+	PS1="\[\n\n${outstuff}\]"
 	# new line and $ or #
-	PS1=${PS1}"\n\[$IYellow\]\$\[$Color_Off\] "
+	PS1=${PS1}"\n\[${IYellow}\]\$\[${Color_Off}$IsSoSSH\] "
+
 }
 
 PS2="> "

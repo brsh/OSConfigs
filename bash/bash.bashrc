@@ -6,23 +6,37 @@
 ##################
 ## Bash Options ##
 ##################
-
-# check the window size after each command and, if necessary,
-# update the values of LINES and COLUMNS.
+## good source: http://www.gnu.org/software/bash/manual/html_node/The-Shopt-Builtin.html
+# check and update the window size after each command
 shopt -s checkwinsize
-
-# don't put duplicate lines in the history. See bash(1) for more options
-# ... or force ignoredups and ignorespace
-export HISTCONTROL=erasedups:ignorespace
-
-# don't remember the following:
-export HISTIGNORE="&:bg:fg:h:pwd:passwd:history *" 
 
 # Enable history appending instead of overwriting.
 shopt -s histappend
 
-# Enable spell-check on directory names with cd command
+# Enable spell-check on directory names
 shopt -s cdspell
+shopt -s dirspell
+
+# Enable change dir with dir name only (no cd)
+shopt -s autocd
+
+# ignore case when performing filename expansion
+shopt -s nocasematch
+
+# Don't search path for completions when TAB on a blank line
+shopt -s no_empty_cmd_completion
+
+# Multiline history
+shopt -s cmdhist
+
+# Load history substitution for edition BEFORE submission
+shopt -s histverify
+
+# ignore duplicate lines & commands starting with space in history
+export HISTCONTROL=erasedups:ignoreboth
+
+# don't remember the following:
+export HISTIGNORE="&:bg:fg:h:pwd:passwd:history *" 
 
 # for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
 export HISTSIZE=300
@@ -35,10 +49,6 @@ export HISTFILESIZE=300
 case "$TERM" in
     xterm-color) color_prompt=yes;;
 esac
-
-#change directory by only entering a directory name
-# example: /etc = cd /etc
-shopt -s autocd
 
 ####################
 ## Basic Niceties ##
@@ -361,6 +371,7 @@ alias cls=clear
 alias ping='ping -c 4'
 alias diff='colordiff'
 alias perm='stat --printf "%a %n \n "'
+alias ?='echo'
 
 if [ $UID -ne 0 ]; then
 
@@ -392,6 +403,7 @@ if [ $UID -ne 0 ]; then
 				alias install='sudo pacman -S'
 				alias yogurt=yaourt
 				alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
+				alias update-grub='sudo grub-mkconfig -o /boot/grub/grub.cfg'
 			;;
 		esac
 	fi
@@ -400,14 +412,14 @@ fi
 ################
 ## My Prompt  ##
 ################
-if [[ -f /etc/mobprompt.sh ]]; then
-	source /etc/mobprompt.sh
-	alias nanoprompt='sudo nano /etc/mobprompt.sh --syntax=sh -w'
+if [[ -f ~/mobprompt.sh ]]; then
+	source ~/mobprompt.sh ]]
+	alias nanoprompt='nano ~/mobprompt.sh --syntax=sh -w'
 elif [[ -f /shared/etc/mobprompt.sh ]]; then
 	source /shared/etc/mobprompt.sh
 	alias nanoprompt='sudo nano /shared/etc/mobprompt.sh --syntax=sh -w'
-elif [[ -f ~/mobprompt.sh ]]; then
-	source ~/mobprompt.sh ]]
-	alias nanoprompt='nano ~/mobprompt.sh --syntax=sh -w'
+elif [[ -f /etc/mobprompt.sh ]]; then
+	source /etc/mobprompt.sh
+	alias nanoprompt='sudo nano /etc/mobprompt.sh --syntax=sh -w'
 fi
 
