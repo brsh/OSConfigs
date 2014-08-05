@@ -226,9 +226,9 @@ function load_util()
 	if [[ ${batstat} && ${batstat-x} ]]; then
 		retval="${retval} ${batstat}"
 	fi
-	if [[ ${upt} && ${upt-x} ]]; then
-		retval="${retval} ${upt}"
-	fi
+#	if [[ ${upt} && ${upt-x} ]]; then
+#		retval="${retval} ${upt}"
+#	fi
 	echo -n "${OPENB}${retval}${CLOSEB}"
 }
 
@@ -278,6 +278,44 @@ function pwd_counts()
 	retval=${retval}"${White}.-${Green}${fileshid} "
 	retval=${retval}"${White}-*${Green}${filesexe} "
 	echo -n ${retval}
+}
+
+function trim_pwd() {
+    if [ ${#PWD} -gt 50 ];
+    then
+        local working_dir=${PWD:0:10}...${PWD:$((${#PWD}-37))};
+    else
+        local working_dir=$PWD
+    fi
+}
+
+function _git_prompt() {
+  local git_status="`git status -unormal 2>&1`"
+  if ! [[ "$git_status" =~ Not\ a\ git\ repo ]]; then
+    if [[ "$git_status" =~ nothing\ to\ commit ]]; then
+      local ansi=$GREEN
+    elif [[ "$git_status" =~ nothing\ added\ to\ commit\ but\ untracked\ files\ present ]]; then
+      local ansi=$RED
+    else
+      local ansi=$YELLOW
+    fi
+    if [[ "$git_status" =~ On\ branch\ ([^[:space:]]+) ]]; then
+      branch=${BASH_REMATCH[1]}
+      #test "$branch" != master || branch=' '
+    else
+      # Detached HEAD.  (branch=HEAD is a faster alternative.)
+      branch="(`git describe --all --contains --abbrev=4 HEAD 2> /dev/null ||
+      echo HEAD`)"
+    fi
+    echo -n '[\['"$ansi"'\]'"$branch"'\[\e[0m\]]'
+  fi
+}
+
+function report_status() {
+  RET_CODE=$?
+  if [[ $RET_CODE -ne 0 ]] ; then
+    echo -ne "[\[$RED\]$RET_CODE\[$NC\]]"
+  fi
 }
 
 function pwd_size() {
@@ -491,8 +529,9 @@ function prompt_big {
 	# Terminal type and number
 	leftstuff=${leftstuff}$(get_tty)
 	leftstuff=${leftstuff}${CLOSEB}
-
 	leftstuff=${leftstuff}${LineColor}${FillChar}
+	#Uptime
+	leftstuff=${leftstuff}${OPENB}$(get_uptime)${CLOSEB}
 
 	# CPU, memory, and battery stats
 	rightstuff=${rightstuff}"$(load_util)"
