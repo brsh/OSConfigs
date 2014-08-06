@@ -215,22 +215,32 @@ done
 # Usage: flag "comment"
 # If no comment, inserts the date.
 function flag(){
-    local message=""
+	local message=""
+	local -i width_head
+	local -i width_tail
 
-    if [ "$1" == "" ]; then
-         message="[======  $(date +'%A -- %B %e, %Y -- %I:%M%P')  ======]"
-    else
-         message="[======  $@  ======]"
-    fi
+	if [ "$1" == "" ]; then
+		message="[======  $(date +'%A -- %B %e, %Y -- %I:%M%P')  ======]"
+	else
+		message="[======  $@  ======]"
+	fi
 
-    echo -en "\n${InvWhite}$(seq -s ' ' ${#message} | sed 's/[0-9]//g')"
-    echo -e ${Color_Off}
+	width_head=$(( (${COLUMNS} - ${#message}) / 2 ))
+	width_tail=$(( ${width_head} + 1 ))
 
-    echo -e ${InvWhite}${message} ${Color_Off}
+	if [[ $(((${width_tail} + ${width_head}) + ${#message})) -gt ${COLUMNS} ]]; then
+		width_tail=$((${width_tail} - 1))
+	fi
 
-    echo -en "${InvWhite}$(seq -s ' ' ${#message} | sed 's/[0-9]//g')"
-    echo -e ${Color_Off}
+	echo -e "\n\n ${InvWhite}$(seq -s ' ' $((${COLUMNS} - 1)) | sed 's/[0-9]//g')${Color_Off}"
+
+	echo -en " ${InvYellow}$(seq -s ' ' ${width_head} | sed 's/[0-9]//g')"
+	echo -en "${InvWhite}${message}"
+	echo -e "${InvYellow}$(seq -s ' ' ${width_tail} | sed 's/[0-9]//g')${Color_Off}"
+
+	echo -e " ${InvWhite}$(seq -s ' ' $((${COLUMNS} - 1 )) | sed 's/[0-9]//g')${Color_Off}"
 }
+
 
 function boxit() {
 t="$1xxxx";c=${2:-#};
@@ -257,6 +267,61 @@ function trim() {
 	var=$(rtrim "${var}")
 	echo -n "$var"
 }
+
+function length() {
+    if [ $# -ne 1 ]; then
+        echo "Usage: length word"
+        return 1
+    fi
+    echo ${#1}
+}
+
+function replace(){
+	# replace part of string with another
+    if [ $# -ne 3 ]; then
+        echo "Usage: replace string substring replacement"
+        return 1
+    fi
+    echo ${1/$2/$3}
+}
+
+function replaceAll(){
+# replace all parts of a string with another
+    if [ $# -ne 3 ]; then
+        echo "Usage: replace string substring replacement"
+        return 1
+    fi
+    echo ${1//$2/$3}
+}
+
+function instr() {
+	# find index of specified string
+    if [ $# -ne 2 ]; then
+        echo "Usage: index string substring"
+        return 1
+    fi
+    expr index $1 $2
+}
+
+function toupper() {
+	# Upper-case
+    if [ $# -lt 1 ]; then
+        echo "Usage: upper word"
+        return 1
+    fi
+    echo ${@^^}
+}
+
+function tolower() {
+	# Lower-case
+    if [ $# -lt 1 ]; then
+        echo "Usage: lower word"
+        return 1
+    fi
+    echo ${@,,}
+}
+
+
 
 function to_roman() {
 	echo ${1} | sed -e 's/1...$/M&/;s/2...$/MM&/;s/3...$/MMM&/;s/4...$/MMMM&/
@@ -292,6 +357,37 @@ function reload_bash() {
 	builtin unalias -a
 	builtin unset -f $(builtin declare -F | sed 's/^.*declare[[:blank:]]\+-f[[:blank:]]\+//')
 	source /etc/bash.bashrc
+}
+
+function mkcd() {
+# Make a directory and change to it
+  if [ $# -ne 1 ]; then
+         echo "Usage: mkcd <dir>"
+         return 1
+  else
+         mkdir -p "$@" && cd "$_"
+  fi
+}
+
+
+function cdls() {
+# cd to a directory and ls
+    cd "$@" && ls -ltr
+}
+
+
+function errno() {
+	# Display ENAME corresponding to number
+	# or all ENAMEs if no number specified.
+
+	# License: LGPLv2
+
+	[ $# -eq 1 ] && re="$1([^0-9]|$)"
+	echo "#include <errno.h>" |
+	cpp -dD -CC | #-CC available since GCC 3.3 (2003)
+	grep -E "^#define E[^ ]+ $re" |
+	sed ':s;s#/\*\([^ ]*\) #/*\1_#;t s;' | column -t | tr _ ' ' | #align
+	cut -c1-$(tput cols) #truncate to screen width
 }
 
 
@@ -389,6 +485,17 @@ unset safe_term match_lhs
 ## Aliases ##
 #############
 
+if [ $(length "$(which grc 2> /dev/null)") -gt 0 ]; then
+	alias ping='grc ping -c 4'
+	alias netstat='grc netstat'
+	alias traceroute='grc traceroute'
+	alias mount='grc mount'
+	alias ps='grc ps'
+	alias lsof='grc lsof'
+else
+	alias ping='ping -c 4'
+fi
+
 alias ls='ls --color=auto --human-readable --group-directories-first --classify'
 alias vdir='vdir --color=auto'
 alias fgrep='fgrep --color=auto'
@@ -403,10 +510,11 @@ alias l='ls -CF'
 alias dir='ls -la'
 alias df='df -h'
 alias cls=clear
-alias ping='ping -c 4'
 alias diff='colordiff'
 alias perm='stat --printf "%a %n \n "'
 alias ?='echo'
+alias functions='declare -F | cut -d " " -f3 | grep -v ^_ | sort | less'
+alias ducks='find . -maxdepth 1 -mindepth 1 -print0 | xargs -0 -n1 du -ks | sort -rn | head -16 | cut -f2 | xargs -i du -hs {}'
 
 if [ $UID -ne 0 ]; then
 

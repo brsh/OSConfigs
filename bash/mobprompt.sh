@@ -23,22 +23,16 @@ test -z "${TERM}" -o "x${TERM}" = dumb && return
 ## and initial settings ##
 ##########################
 
+#the open and close brackets - with color
 OPENB="${IWhite}["
 CLOSEB="${IWhite}]"
+
+#the linedraw character default
 FillChar="─"
-case "$TERM" in
-	linux)
-		battdn="-"
-		battup="+"
-	;;
-	*)
-#		FillChar="\e(0q\e(B"
-#		battdn="↓"
-#		battup="↑"
-		battdn="▼"
-		battup="▲"
-	;;
-esac
+
+#the battery charge/discharge symbols
+battdn="▼"
+battup="▲"
 
 
 ########################
@@ -50,14 +44,13 @@ function GetSSHConnection {
 if [ -n "${SSH_CONNECTION}" ]; then
 	## We're connected via SSH
 	local retval="${OPENB}${Green}SSH'd from "  # Connected on remote machine, via ssh (good)
+	#try to get the ip and name (and trim the name so there's no domain)
 	local SSH_IP=`echo ${SSH_CONNECTION} | awk '{print $1}'`
 	local SSH_NAME=`echo ${SSH_IP} | nslookup | grep name | awk '{print $4}'`
 	local hostip=""
 	if [ -n "${SSH_NAME}" ]; then
-#		retval=${retval}${Purple}$(echo ${SSH_NAME} | cut -d . -f1)
 		hostip=$(echo ${SSH_NAME} | cut -d . -f1)
 	else
-#		retval=${retval}${Purple}${SSH_IP}
 		hostip=${SSH_IP}
 	fi
 	retval=${retval}${Purple}${hostip}${CLOSEB}
@@ -72,7 +65,7 @@ fi
 }
 
 function GetUserColor {
-# Test user type (root-ish or normal):
+# Test user type (root-ish or normal). As root:
 # 	USER will be "root" with Sudo
 # 	UID will be 0 with su
 # 	C:\Windows will be writable with Windows (via cygwin)
@@ -96,7 +89,7 @@ function GetUserColor {
 }
 
 function GetNetwork {
-#Try to pull ip info (ip address and wireless ssid)
+	#Try to pull ip info (ip address and wireless ssid)
 	local retval=""
 
 	#Check IP (on linux) or route print (on Windows) for the IP
@@ -112,14 +105,14 @@ function GetNetwork {
 		IP=""
 	fi
 
-#try to pull ssid
+	#try to pull wireless ssid
 	# iwgetid reads the ssid
 	local IPSSID=$(which iwgetid 2> /dev/null)
 	if [[ $IPSSID && ${IPSSID-x} ]]; then
 		IPSSID=$(iwgetid -r)
 	fi
 
-#put it all together
+	#put it all together
 	if [[ $IP && ${IP-x} ]]; then
 		retval=${OPENB}
 	        if [[ $IPSSID && ${IPSSID-x} ]]; then
@@ -132,6 +125,7 @@ function GetNetwork {
 
 function cpu_load()
 {
+	#parses top to get idle percentage (and subtracts from 100 to get use)
 	local retval
 	local SYSLOAD
 	local comparo
@@ -140,8 +134,8 @@ function cpu_load()
 	SYSLOAD=$(echo -n ${SYSLOAD} | cut -d " " -f1 | awk '{ print 100-$1}' )
 
 	if [[ ${SYSLOAD} && ${SYSLOAD-x} ]]; then
-		## another option: echo $var | awk '{print int($1+0.5)}'
 		retval="${White}cpu "
+		#color the % output
 		comparo=$(printf %.0f ${SYSLOAD})
 		if [ ${comparo} -gt 85 ]; then
 			retval=${retval}${BRed}
@@ -158,6 +152,7 @@ function cpu_load()
 # Formating for memory
 function memory_load()
 {
+	#pulls memory load 
 	local retval=""
 	local freeExists=$(which free 2> /dev/null)
 	if [[ ${freeExists} && ${freeExists-x} ]]; then
@@ -166,7 +161,7 @@ function memory_load()
 		local memcent=$(echo "scale=0; (100-(100*$memfree/$memtotal))" | bc -l)
 
 		retval="${White}mem "
-
+		#and color as necessary
 	        if [ ${memcent} -gt 85 ]; then
         	    retval=${retval}${Red}		# Memory almost full (>85%).
 	        elif [ ${memcent} -gt 65 ]; then
@@ -179,6 +174,7 @@ function memory_load()
 }
 
 function get_uptime() {
+	# pulls uptime from source other than... uptime (which doesn't seem to work on cygwin)
 	local uptime=$(</proc/uptime)
 	local timeused=${uptime%%.*}
 	local daysused=0
@@ -187,6 +183,7 @@ function get_uptime() {
 	local secondsused=0
 	local retval="up "
 
+	#break it up into human readable time
 	if [[ ${timeused} && ${timeused-x} ]]; then
 		if (( timeused > 86400 )); then
 			((
@@ -208,6 +205,7 @@ function get_uptime() {
 			))
 		fi
 
+		#color and display
 		retval=${retval}"${Green}${daysused}${White}d "
 		retval=${retval}"${Green}${hoursused}${White}h:"
 		retval=${retval}"${Green}$(echo ${minutesused} | sed -e :a -e 's/^.\{1,1\}$/0&/;ta' )${White}m:"
@@ -219,6 +217,7 @@ function get_uptime() {
 
 function load_util()
 {
+	#put all the loads (incl. battery) together
 	local retval=""
 	local batstat=$(battery_status)
 	local upt=$(get_uptime)
@@ -226,48 +225,76 @@ function load_util()
 	if [[ ${batstat} && ${batstat-x} ]]; then
 		retval="${retval} ${batstat}"
 	fi
-#	if [[ ${upt} && ${upt-x} ]]; then
-#		retval="${retval} ${upt}"
-#	fi
 	echo -n "${OPENB}${retval}${CLOSEB}"
 }
 
-# Returns a color according to free disk space in $PWD.
 function path_info()
 {
+	# Returns a color according to free disk space in $PWD.
+	# Also pulls the count of various files in the dir
+	#    (but only if there's enough room on screen)
 	local retval=""
+	local lengthlimit=${1}
 	local diskloc="${PWD/$HOME/\~}"
-	if [ ! -w "${PWD}" ] ; then
-        	retval="${Red}RO ${diskloc//\//$White\/$Red}"
-	        # No 'write' privilege in the current directory.
-	else
-		retval="${Green}${diskloc//\//$White\/$Green}"
+
+	#get the free space and color it
+	if [ -d "${PWD}" ] ; then
+        	local used=$(command df -P "$PWD" | awk 'END {print $5} {sub(/%/,"")}')
+		if [ ! "${used}" == "-" ]; then
+			retval=${retval}" ${White}free"
+			if [ ${used} -gt 95 ]; then
+				retval=${retval}${BRed}           # Disk almost full (>95%).
+			elif [ ${used} -gt 80 ]; then
+				retval=${retval}${Yellow}            # Free disk space almost gone.
+			else
+				retval=${retval}${Green}           # Free disk space is ok.
+			fi
+			let used=100-${used}
+		else
+			# Current directory is size '-' (like /proc, /sys etc).
+			used="${Green}-"
+		fi
+		retval=${retval}" ${used}${White}%"
+		retval=${retval}" ${White}#:$(pwd_counts) ${White}=$(pwd_size)"
 	fi
 
-	if [ -d "${PWD}" ] ; then
-		retval=${retval}" ${White}free"
-        	local used=$(command df -P "$PWD" | awk 'END {print $5} {sub(/%/,"")}')
-		if [ ${used} -gt 95 ]; then
-			retval=${retval}${BRed}           # Disk almost full (>95%).
-		elif [ ${used} -gt 80 ]; then
-			retval=${retval}${Yellow}            # Free disk space almost gone.
-		else
-			retval=${retval}${Green}           # Free disk space is ok.
-		fi
-		let used=100-${used}
-		retval=${retval}" $used$White% #:$(pwd_counts)"
-	#else
-        	# Current directory is size '0' (like /proc, /sys etc).
+	#Now trim the path down if the screen is too narrow
+	local curclean=$(cleanesc ${retval})
+	local curlength=${#curclean}
+	local maxlength=0
+	let maxlength=(${curlength}+${lengthlimit})
+	local pwdshrunk=$(trim_pwd ${maxlength} ${diskloc})
+	diskloc=${pwdshrunk}
+
+	#Check if the pwd is read-only (not read-write)
+	#and color the text (but not the slashes)
+	if [ ! -w "${PWD}" ] ; then
+        	retval="${Red}RO ${diskloc//\//$White\/$Red}"${retval}
+	        # No 'write' privilege in the current directory.
+	else
+		retval="${Green}${diskloc//\//$White\/$Green}"${retval}
 	fi
+
+	#We've trimmed the path, now trim out the number of files/dirs (if necessary)
+	#Based around the position of the %
+	curclean=$(cleanesc ${retval})
+	curlength=${#curclean}
+	let maxlength=(${curlength}+${lengthlimit} + 4)
+	if [[ ${maxlength} -gt ${COLUMNS} ]]; then
+		local percloc=$(expr index "${retval}" "%")
+		retval=${retval:0:${percloc}}
+	fi
+
 	echo -n ${retval}
 }
 
 function pwd_counts()
 {
+	#Count the number of various files in the dir
+	#reg=just plain; hid=hidden; exe=+x
 	local filesreg=$(ls -p1 2> /dev/null | grep -v ^l | grep -v / | wc -l)
 	local fileshid=$(ls -ld .[^.]* 2> /dev/null | grep -v ^l | grep -v / | wc -l)
 	local filesexe=$(ls -FA1 2> /dev/null | grep \* | wc -l)
-#	local dirreg=$(ls -p1 2> /dev/null | grep -v ^l | grep / | wc -l)
 	local dirreg=$(ls -l 2> /dev/null | grep ^d | wc -l)
 	local dirhid=$(ls -ld .[^.]* 2> /dev/null | grep -v ^l | grep / | wc -l)
 
@@ -281,44 +308,56 @@ function pwd_counts()
 }
 
 function trim_pwd() {
-    if [ ${#PWD} -gt 50 ];
-    then
-        local working_dir=${PWD:0:10}...${PWD:$((${#PWD}-37))};
-    else
-        local working_dir=$PWD
-    fi
+	#shrink the pwd to initials if it's too long (leave the actual working dir)
+	local p=${2/#$HOME/\~} b s
+	local slashcount="${PWD//[^\/]/}"
+	slashcount=${#slashcount}
+	if [ ${slashcount} -gt 1 ]; then
+		s=${#p}
+		while [[ $p != "${p//\/}" ]]&&(($s>((${COLUMNS}-$1))))
+		do
+			p=${p#/}
+			[[ $p =~ \.?. ]]
+			b=$b/${BASH_REMATCH[0]}
+			p=${p#*/}
+			((s=${#b}+${#p}))
+		done
+		echo ${b/\/~/\~}${b+/}$p
+	else
+		echo ${p}
+	fi
 }
 
 function _git_prompt() {
-  local git_status="`git status -unormal 2>&1`"
-  if ! [[ "$git_status" =~ Not\ a\ git\ repo ]]; then
-    if [[ "$git_status" =~ nothing\ to\ commit ]]; then
-      local ansi=$GREEN
-    elif [[ "$git_status" =~ nothing\ added\ to\ commit\ but\ untracked\ files\ present ]]; then
-      local ansi=$RED
-    else
-      local ansi=$YELLOW
-    fi
-    if [[ "$git_status" =~ On\ branch\ ([^[:space:]]+) ]]; then
-      branch=${BASH_REMATCH[1]}
-      #test "$branch" != master || branch=' '
-    else
-      # Detached HEAD.  (branch=HEAD is a faster alternative.)
-      branch="(`git describe --all --contains --abbrev=4 HEAD 2> /dev/null ||
-      echo HEAD`)"
-    fi
-    echo -n '[\['"$ansi"'\]'"$branch"'\[\e[0m\]]'
-  fi
-}
-
-function report_status() {
-  RET_CODE=$?
-  if [[ $RET_CODE -ne 0 ]] ; then
-    echo -ne "[\[$RED\]$RET_CODE\[$NC\]]"
-  fi
+	#test current dir for git status (if any)
+	local git_status=$(which git 2> /dev/null)
+	local retval=""
+	local branch=""
+	if [[ ${git_status} && ${git_status-x} ]]; then
+		git_status="$(git status -unormal 2>&1)"
+		if ! [[ "${git_status}" =~ Not\ a\ git\ repo ]]; then
+			if [[ "${git_status}" =~ nothing\ to\ commit ]]; then
+				retval=$GREEN
+			elif [[ "${git_status}" =~ nothing\ added\ to\ commit\ but\ untracked\ files\ present ]]; then
+				retval=$RED
+			else
+				retval=$YELLOW
+			fi
+			if [[ "$git_status" =~ On\ branch\ ([^[:space:]]+) ]]; then
+				branch=${BASH_REMATCH[1]}
+				#test "$branch" != master || branch=' '
+			else
+				# Detached HEAD.  (branch=HEAD is a faster alternative.)
+				branch="(`git describe --all --contains --abbrev=4 HEAD 2> /dev/null ||
+				echo HEAD`)"
+			fi
+		echo -n "${OPENB}${retval}${branch}${CLOSEB}"
+		fi
+	fi
 }
 
 function pwd_size() {
+	#totals all files in the pwd and shows the human readable total
 	local TotalBytes
 	let TotalBytes=0
 
@@ -335,15 +374,16 @@ function pwd_size() {
 	elif [ $TotalBytes -lt 1073741824 ]; then
 		TotalSize=$(echo -e "scale=1 \n$TotalBytes/1048576 \nquit" | bc)
 		suffix="MB"
-	else
+	elif [ $TotalBytes -lt 1099511627776 ]; then
 		TotalSize=$(echo -e "scale=1 \n$TotalBytes/1073741824 \nquit" | bc)
 		suffix="GB"
+	else
+		TotalSize=$(echo -e "scale=1 \n$TotalBytes/1099511627776 \nquit" | bc)
+		suffix="TB"
 	fi
 
-	echo "${TotalSize} ${suffix}"
+	echo -n "${Green}${TotalSize}${White}${suffix}"
 }
-
-
 
 #Returns error stuff
 function error_result()
@@ -355,7 +395,6 @@ function error_result()
 	fi
     echo -n ${retval}
 }
-
 
 function battery_status()
 {
@@ -507,6 +546,7 @@ function color_of_time() {
 
 # Now ... the prompt.
 PROMPT_COMMAND=prompt_big
+#trap "export H1=$(history 1 | sed -e 's/^[\ 0-9]*//; s/[\d0\d31\d34\d39\d96\d127]*//g; s/\(.\{1,50\}\).*$/\1/g'); echo " DEBUG
 
 function prompt_big {
 	ErrLevel=$(error_result)
@@ -521,6 +561,11 @@ function prompt_big {
 		LineColor=${Red}
 		#leftstuff=${leftstuff}"\${ErrLevel}${LineColor}${FillChar}"
 	fi
+
+	local FillCharTemp=${FillChar}
+	outstuff=${LineColor}$(fill_line)"\n"
+	FillChar=" "
+
 	#Shell depth
 	leftstuff=${leftstuff}"${OPENB}${White}sh${Green}${SHLVL} "
 	#leftstuff=${leftstuff}${LineColor}${FillChar}
@@ -530,8 +575,13 @@ function prompt_big {
 	leftstuff=${leftstuff}$(get_tty)
 	leftstuff=${leftstuff}${CLOSEB}
 	leftstuff=${leftstuff}${LineColor}${FillChar}
-	#Uptime
-	leftstuff=${leftstuff}${OPENB}$(get_uptime)${CLOSEB}
+	#Uptime - but only if the term is wide enough
+	local up_time=${OPENB}$(get_uptime)${CLOSEB}
+	local lefttemp=$(cleanesc ${up_time}${leftstuff})
+	local lefttemplen=${#lefttemp}
+	if [[ ${lefttemplen} -lt $((${COLUMNS} / 2)) ]]; then
+		leftstuff=${leftstuff}${up_time}
+	fi
 
 	# CPU, memory, and battery stats
 	rightstuff=${rightstuff}"$(load_util)"
@@ -546,31 +596,36 @@ function prompt_big {
 	local colortime=$(color_of_time ${holdhour} ${holdmeri})
 	rightstuff=${rightstuff}"${OPENB}${Green}${holdday} ${colortime}${holdhour}${White}:${colortime}${holdmin}${holdmeri}${CLOSEB}"
 
+	#if the screen is too narrow, we'll remove the uptime
+	local line_width
+	local line_clean=$(cleanesc ${rightstuff}${leftstuff})
+	let line_width=${#line_clean}
+
 	#Line to right justify
 	local filled=$(fill_line ${leftstuff}${rightstuff})
-	outstuff=${leftstuff}${LineColor}${filled}${rightstuff}
+	outstuff=${outstuff}${leftstuff}${LineColor}${filled}${rightstuff}"\n"
 
-	outstuff=${outstuff}"\n"
 	leftstuff=""
 	rightstuff=""
 
 	#Line 2
-        # PWD (with 'disk space' info):
-        leftstuff=${leftstuff}"${OPENB}${IBlue}$(path_info)${CLOSEB}"
-	leftstuff=${leftstuff}${LineColor} #${FillChar}
  	# IP
 	rightstuff=${rightstuff}"$(GetNetwork)"
 	rightstuff=${rightstuff}${LineColor}${FillChar}
         # User@Host (with connection type info):
 	rightstuff=${rightstuff}"${OPENB}$(GetUserColor)${White}@${Purple}${HOSTNAME}${CLOSEB}"
 #	rightstuff=${leftstuff}${LineColor}${FillChar}
-	#Line to right justify
-	local FillCharTemp=${FillChar}
-	FillChar=" "
-	filled=$(fill_line ${leftstuff}${rightstuff})
-	outstuff=${outstuff}${leftstuff}${LineColor}${filled}${rightstuff}
+	local rightclean=$(cleanesc ${rightstuff})
+	local rightlength=${#rightclean}
+        # PWD (with 'disk space' info):
+        leftstuff=${leftstuff}"${OPENB}${IBlue}$(path_info ${rightlength})${CLOSEB}"
+	leftstuff=${leftstuff}${LineColor} #${FillChar}
 
-	#FillChar=${FillCharTemp}
+	#Line to right justify
+#	local FillCharTemp=${FillChar}
+#	FillChar=" "
+	filled=$(fill_line ${leftstuff}${rightstuff})
+	outstuff=${outstuff}${leftstuff}${LineColor}${filled}${rightstuff}"\n"
 
 	rightstuff=""
 	leftstuff=""
@@ -584,7 +639,7 @@ function prompt_big {
 		outstuff=${outstuff}${leftstuff}${LineColor}${filled}${rightstuff}
 		#Set the terminal title (skip linux terms)
 		if [[ ! $TERM == "linux" ]]; then
-			echo -ne "\033]0;${cleanIsIt} ${USER}@${HOSTNAME}: ${PWD/$HOME/\~}\007"
+			echo -ne "\033]0;${cleanIsIt} ${USER}@${HOSTNAME}: ${PWD/$HOME/\~} - ${H1}\007"
 		fi
 	else
 		#Set the terminal title (skip linux terms)
@@ -596,8 +651,10 @@ function prompt_big {
 	#Reset the fill character
 	FillChar=${FillCharTemp}
 
+	outstuff=${outstuff}${LineColor}$(fill_line)
+
 	#The Actual Prompt!
-	PS1="\[\n\n${outstuff}\]"
+	PS1="\[\n\n${outstuff}\n\]"
 	# new line and $ or #
 	PS1=${PS1}"\n\[${IYellow}\]\$\[${Color_Off}$IsSoSSH\] "
 
