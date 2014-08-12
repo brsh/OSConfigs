@@ -149,6 +149,14 @@ function cpu_load()
 	echo -n ${retval}
 }
 
+function load_diff() {
+	local one=$(uptime | sed -e "s/.*load average: \(.*\...\), \(.*\...\), \(.*\...\)/\1/" -e "s/ //g")
+	local five=$(uptime | sed -e "s/.*load average: \(.*\...\), \(.*\...\), \(.*\...\).*/\2/" -e "s/ //g")
+	local diff1_5=$(echo -e "scale = scale ($one) \nx=$one - $five\n if (x>0) {print \"${battup}\"} else {print \"${battdn}\"}\n print x \nquit \n" | bc)
+	local retval=$(echo -n ${diff1_5} | sed -e 's/\-//g')
+	echo -n "ld ${Green}${retval}${Color_Off}"
+}
+
 # Formating for memory
 function memory_load()
 {
@@ -221,7 +229,7 @@ function load_util()
 	local retval=""
 	local batstat=$(battery_status)
 	local upt=$(get_uptime)
-	retval="$(cpu_load) $(memory_load)"
+	retval="$(load_diff) $(cpu_load) $(memory_load)"
 	if [[ ${batstat} && ${batstat-x} ]]; then
 		retval="${retval} ${batstat}"
 	fi
@@ -654,7 +662,7 @@ function prompt_big {
 	outstuff=${outstuff}${LineColor}$(fill_line)
 
 	#The Actual Prompt!
-	PS1="\[\n\n${outstuff}\n\]"
+	PS1="\[\n\n${outstuff}\]"
 	# new line and $ or #
 	PS1=${PS1}"\n\[${IYellow}\]\$\[${Color_Off}$IsSoSSH\] "
 
