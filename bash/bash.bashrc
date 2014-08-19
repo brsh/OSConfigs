@@ -3,6 +3,30 @@
 # If not running interactively, don't do anything
 [ -z "$PS1" ] && return
 
+# From where am I being sourced
+currBashrc="$(dirname "$BASH_SOURCE")/$(basename "$BASH_SOURCE")"
+
+##################
+##   Which OS   ##
+##################
+# because not everything works the same everywhere
+BaseOS=$(uname -s)
+
+case "${BaseOS}" in
+	Darwin )
+		Distro="MacOS"
+	;;
+	Linux )
+		Distro=$(cat /etc/*-release | grep ^NAME= | cut -d = -f2)
+	;;
+	CYGWIN* )
+		Distro="Windows"
+		BaseOS="CYGWIN"
+	;;
+	* )
+		Distro="${BaseOS}"
+esac
+
 ##################
 ## Bash Options ##
 ##################
@@ -15,10 +39,14 @@ shopt -s histappend
 
 # Enable spell-check on directory names
 shopt -s cdspell
-shopt -s dirspell
+if [ ! "$BaseOS" == "Darwin" ]; then 
+	shopt -s dirspell
+fi
 
 # Enable change dir with dir name only (no cd)
-shopt -s autocd
+if [ ! "$BaseOS" == "Darwin" ]; then 
+	shopt -s autocd
+fi
 
 # ignore case when performing filename expansion
 shopt -s nocasematch
@@ -356,7 +384,7 @@ function ls_perms() {
 function reload_bash() {
 	builtin unalias -a
 	builtin unset -f $(builtin declare -F | sed 's/^.*declare[[:blank:]]\+-f[[:blank:]]\+//')
-	source /etc/bash.bashrc
+	source "${currBashrc}"
 }
 
 function mkcd() {
@@ -390,6 +418,31 @@ function errno() {
 	cut -c1-$(tput cols) #truncate to screen width
 }
 
+function tip() {
+	local blah=1
+	local retval=""
+	while [ $blah -gt 0 ]
+	do
+		whatis $(ls /bin/ -p1 2> /dev/null | grep -v ^l | grep -v / | shuf -n 1) 2> /dev/null
+		blah=$?
+	done
+}
+
+function ls_reg() {
+	\ls $1 -l 2> /dev/null | grep -v '^[ld]\|^total' | gawk '{print $9}'
+}
+function ls_hid() {
+	\ls $1 -ld .[^.]* 2> /dev/null | grep -v '^[ld]\|^total' | gawk '{print $9}'
+}
+function ls_dirs() {
+	\ls $1 -l 2> /dev/null | grep -v '^[l-]\|^total' | gawk '{print $9}'
+}
+function ls_dirshid() {
+	\ls $1 -l 2> /dev/null | grep -v ^[ld] | grep -v ^total | gawk '{print $9}'
+}
+function ls_exe() {
+	\ls $1 -l 2> /dev/null | grep -v ^[ld] | grep -v ^total | gawk '{print $9}'
+}
 
 
 #################
@@ -496,12 +549,17 @@ else
 	alias ping='ping -c 4'
 fi
 
-alias ls='ls --color=auto --human-readable --group-directories-first --classify'
-alias vdir='vdir --color=auto'
+if [ $(length "$(which vdir 2> /dev/null)") -gt 0 ]; then
+	alias vdir='vdir --color=auto'
+fi
+
+if [ $(length "$(which colordiff 2> /dev/null)") -gt 0 ]; then
+	alias diff='colordiff'
+fi
+
 alias fgrep='fgrep --color=auto'
 alias egrep='egrep --color=auto'
 alias grep='grep --color=auto'
-alias gedit='gedit &'
 alias nano='nano -w'
 
 alias ll='ls -alF'
@@ -510,46 +568,59 @@ alias l='ls -CF'
 alias dir='ls -la'
 alias df='df -h'
 alias cls=clear
-alias diff='colordiff'
-alias perm='stat --printf "%a %n \n "'
 alias ?='echo'
 alias functions='declare -F | cut -d " " -f3 | grep -v ^_ | sort | less'
-alias ducks='find . -maxdepth 1 -mindepth 1 -print0 | xargs -0 -n1 du -ks | sort -rn | head -16 | cut -f2 | xargs -i du -hs {}'
+alias ducks='find . -maxdepth 1 -mindepth 1 -print0 | xargs -0 -n1 du -ks 2> /dev/null | sort -rn | head -$((LINES - 10)) | cut -f2 | xargs du -hs 2> /dev/null'
+
+alias ls='\ls --color=auto --human-readable --group-directories-first --classify'
+
+case "${BaseOS}" in
+	Darwin )
+		alias perm='stat -f "%7Op %Sp%t%Su %SHp%t%Sg %SMp%tother %SLp%t%SN%ST"'
+		alias ls='\ls -FhG'
+		export CLICOLOR=1
+		export LSCOLORS=GxFxCxDxBxegedabagaced
+	;;
+	Linux )
+		alias perm='stat --printf "%a %A %G %U %n\n"'
+		alias gedit='gedit &'
+	;;
+esac
 
 if [ $UID -ne 0 ]; then
+	alias reboot='sudo reboot'
+	alias shutdown='sudo shutdown -t 2 now -h'
 
-	if [ "${OS}" == "Windows_NT" ]; then
-		alias sudo='echo -e "\nSudo is not available in CygWin. Use sudo-s instead."'
-		alias sudo-s='/usr/bin/cygstart --action=runas /usr/bin/mintty -e /usr/bin/bash --login'
-		Distro="Windows"
-	else
-		alias reboot='sudo reboot'
-		alias shutdown='sudo shutdown -t 2 now -h'
+	case "${Distro}" in
 
-		Distro=$(cat /etc/*-release | grep ^NAME= | cut -d = -f2)
-
-		case "$Distro" in
-			*buntu* | *Mint* | *ingu* | *etrunne* | *lementar* )
-				alias update='sudo apt-get update && sudo apt-get upgrade'
-				alias dist-upgrade='sudo apt-get update && sudo apt-get dist-upgrade'
-				alias install='sudo apt-get install'
-				alias autoremove='sudo apt-get autoremove'
-				alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
-			;;
-			*edora* | *Cent* | *Hat* | *oror* | *udunt* | *cientifi* )
-				alias update='sudo yum upgrade'
-        			alias install='sudo yum install'
-				alias nanobash='sudo nano /etc/profile.d/bash.sh --syntax=sh -w'
-			;;
-			*Arch* | *anjar* | *ntergo* )
-				alias update='sudo pacman -Syu'
-				alias install='sudo pacman -S'
-				alias yogurt=yaourt
-				alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
-				alias update-grub='sudo grub-mkconfig -o /boot/grub/grub.cfg'
-			;;
-		esac
-	fi
+		##MacOS )
+		##;;
+		Windows* )
+			alias sudo='echo -e "\nSudo is not available in CygWin. Use sudo-s instead."'
+			alias sudo-s='/usr/bin/cygstart --action=runas /usr/bin/mintty -e /usr/bin/bash --login'
+			unalias reboot
+			unalias shutdown
+		;;
+		*buntu* | *Mint* | *ingu* | *etrunne* | *lementar* )
+			alias update='sudo apt-get update && sudo apt-get upgrade'
+			alias dist-upgrade='sudo apt-get update && sudo apt-get dist-upgrade'
+			alias install='sudo apt-get install'
+			alias autoremove='sudo apt-get autoremove'
+			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
+		;;
+		*edora* | *Cent* | *Hat* | *oror* | *udunt* | *cientifi* )
+			alias update='sudo yum upgrade'
+       			alias install='sudo yum install'
+			alias nanobash='sudo nano /etc/profile.d/bash.sh --syntax=sh -w'
+		;;
+		*Arch* | *anjar* | *ntergo* )
+			alias update='sudo pacman -Syu'
+			alias install='sudo pacman -S'
+			alias yogurt=yaourt
+			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
+			alias update-grub='sudo grub-mkconfig -o /boot/grub/grub.cfg'
+		;;
+	esac
 fi
 
 ################
