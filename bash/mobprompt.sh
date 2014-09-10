@@ -45,8 +45,8 @@ if [ -n "${SSH_CONNECTION}" ]; then
 	## We're connected via SSH
 	local retval="${OPENB}${Green}SSH'd from "  # Connected on remote machine, via ssh (good)
 	#try to get the ip and name (and trim the name so there's no domain)
-	local SSH_IP=`echo ${SSH_CONNECTION} | awk '{print $1}'`
-	local SSH_NAME=`echo ${SSH_IP} | nslookup | grep name | awk '{print $4}'`
+	local SSH_IP=$(echo ${SSH_CONNECTION} | awk '{print $1}')
+	local SSH_NAME=$(echo ${SSH_IP} | nslookup | grep name | awk '{print $4}')
 	local hostip=""
 	if [ -n "${SSH_NAME}" ]; then
 		hostip=$(echo ${SSH_NAME} | cut -d . -f1)
@@ -58,7 +58,8 @@ if [ -n "${SSH_CONNECTION}" ]; then
 	export LIBGL_ALWAYS_INDIRECT=1
 	#For setting the terminal title
 	IsSoSSH="ssh'd to ${hostip} as ${USER}"
-	echo -n ${retval}
+	#echo -n ${retval}
+	printf "%s" "${retval}"
 else
 	IsSoSSH=""
 fi
@@ -85,21 +86,34 @@ function GetUserColor {
 		retval=${Green}         # User is normal (yay!).
 	fi
 	retval=${retval}${USER}
-	echo -n ${retval}
+	#echo -n ${retval}
+	printf "%s" "${retval}"
 }
 
 function GetNetwork {
 	#Try to pull ip info (ip address and wireless ssid)
 	local retval=""
+	local IP=""
 
-	#Check IP (on linux) or route print (on Windows) for the IP
-	#IP includes the netmask, which we'll cut out
-	local IP=$(which ip 2> /dev/null)
-	if [[ ${IP} && ${IP-x} ]]; then
-		IP=$(ip addr show | grep global | awk '{print $2}' | cut -d / -f1)
-	else
-		IP=$(route print | egrep "^ +0.0.0.0 +0.0.0.0 +" | gawk 'BEGIN { metric=255; ip="0.0.0.0"; } { if ( $5 < metric ) { ip=$4; metric=$5; } } END { printf("%s\n",ip); }')
-	fi
+	case "${BaseOS}" in
+		Darwin )
+			IP=$(trim $(ifconfig | grep "inet " | grep broadcast) | cut -d " " -f2)
+		;;
+		Linux )
+			# We prefer IP
+			IP=$(which ip 2> /dev/null)
+			if [[ ${IP} && ${IP-x} ]]; then
+				IP=$(ip addr show | grep global | awk '{print $2}' | cut -d / -f1)
+			else
+				# but will fall back to ifconfig if needed...
+				IP=$(trim $(ifconfig | grep "inet " | grep broadcast) | cut -d " " -f2)
+			fi
+		;;
+		Windows* )
+			IP=$(route print | egrep "^ +0.0.0.0 +0.0.0.0 +" | gawk 'BEGIN { metric=255; ip="0.0.0.0"; } { if ( $5 < metric ) { ip=$4; metric=$5; } } END { printf("%s\n",ip); }')
+		;;
+	esac
+
 	#Verify the IP is valid
 	if [[ ! ${IP} =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
 		IP=""
@@ -108,19 +122,20 @@ function GetNetwork {
 	#try to pull wireless ssid
 	# iwgetid reads the ssid
 	local IPSSID=$(which iwgetid 2> /dev/null)
-	if [[ $IPSSID && ${IPSSID-x} ]]; then
+	if [[ ${IPSSID} && ${IPSSID-x} ]]; then
 		IPSSID=$(iwgetid -r)
 	fi
 
 	#put it all together
-	if [[ $IP && ${IP-x} ]]; then
+	if [[ ${IP} && ${IP-x} ]]; then
 		retval=${OPENB}
 	        if [[ $IPSSID && ${IPSSID-x} ]]; then
         	        retval="${retval}${Green}${IPSSID} "
 	        fi
 		retval=${retval}${Yellow}${IP}${CLOSEB}
 	fi
-	echo -n ${retval}
+	#echo -n ${retval}
+	printf "%s" "${retval}"
 }
 
 function cpu_load()
@@ -129,9 +144,14 @@ function cpu_load()
 	local retval
 	local SYSLOAD
 	local comparo
-	SYSLOAD=$(top -b -n2 -d 0.1 | fgrep "Cpu(s)" | tail -1 | cut -d , -f4)
+	if [ "${BaseOS}" == "Darwin" ]; then
+		#SYSLOAD=$(top -l 1 -n1 | fgrep "CPU" | head -1 | cut -d , -f3)
+		SYSLOAD=$(ps aux | awk {'sum+=$3;print sum'} | tail -n 1)
+	else
+		SYSLOAD=$(top -b -n2 -d 0.1 | fgrep "Cpu(s)" | tail -1 | cut -d , -f4)
 	SYSLOAD=$(trim "${SYSLOAD}")
 	SYSLOAD=$(echo -n ${SYSLOAD} | cut -d " " -f1 | awk '{ print 100-$1}' )
+	fi
 
 	if [[ ${SYSLOAD} && ${SYSLOAD-x} ]]; then
 		retval="${White}cpu "
@@ -146,26 +166,44 @@ function cpu_load()
 		fi
 		retval="${retval}${SYSLOAD}${White}%"
 	fi
-	echo -n ${retval}
+	#echo -n ${retval}
+	printf "%s" "${retval}"
 }
 
 function load_diff() {
-	local one=$(uptime | sed -e "s/.*load average: \(.*\...\), \(.*\...\), \(.*\...\)/\1/" -e "s/ //g")
-	local five=$(uptime | sed -e "s/.*load average: \(.*\...\), \(.*\...\), \(.*\...\).*/\2/" -e "s/ //g")
-	local diff1_5=$(echo -e "scale = scale ($one) \nx=$one - $five\n if (x>0) {print \"${battup}\"} else {print \"${battdn}\"}\n print x \nquit \n" | bc)
+	local one
+	local five
+	local upp="${battup}"
+	local dnn="${battdn}"
+	if [ "${BaseOS}" == "Darwin" ]; then
+		local one=$(uptime | sed -e "s/.*load averages: \(.*\...\) \(.*\...\) \(.*\...\)/\1/" -e "s/ //g")
+		local five=$(uptime | sed -e "s/.*load averages: \(.*\...\) \(.*\...\) \(.*\...\).*/\2/" -e "s/ //g")
+		upp="${upp} "
+		dnn="${dnn} "
+	else
+		local one=$(uptime | sed -e "s/.*load average: \(.*\...\), \(.*\...\), \(.*\...\)/\1/" -e "s/ //g")
+		local five=$(uptime | sed -e "s/.*load average: \(.*\...\), \(.*\...\), \(.*\...\).*/\2/" -e "s/ //g")
+	fi
+	local diff1_5=$(echo -e "scale = scale ($one) \nx=$one - $five\n if (x>0) {print \"${upp}\"} else {print \"${dnn}\"}\n print x \nquit \n" | bc)
 	local retval=$(echo -n ${diff1_5} | sed -e 's/\-//g')
-	echo -n "ld ${Green}${retval}${Color_Off}"
+	printf "%s" "ld ${Green}${retval}${Color_Off}"
 }
 
 # Formating for memory
 function memory_load()
 {
-	#pulls memory load 
+	#pulls memory load
 	local retval=""
+	local memfree
+	local memtotal
 	local freeExists=$(which free 2> /dev/null)
 	if [[ ${freeExists} && ${freeExists-x} ]]; then
-		local memfree=$(free -m | head -n 2 | tail -n 1 | awk {'print $4'})
-		local memtotal=$(free -m | head -n 2 | tail -n 1 | awk {'print $2'})
+		memfree=$(free -m | head -n 2 | tail -n 1 | awk {'print $4'})
+		memtotal=$(free -m | head -n 2 | tail -n 1 | awk {'print $2'})
+	elif [ "${BaseOS}" == "Darwin" ]; then
+		memfree="$(( $(vm_stat | awk '/free/ {gsub(/\./, "", $3); print $3}') * 4096 / 1048576))"
+		memtotal="$(( $(sysctl -n hw.memsize) / 1048576))"
+	fi
 		local memcent=$(echo "scale=0; (100-(100*$memfree/$memtotal))" | bc -l)
 
 		retval="${White}mem "
@@ -177,19 +215,27 @@ function memory_load()
 	        else
         	    retval=${retval}${Green}		# Memory space is ok.
 	        fi
-        	echo -n "${retval}${memcent}${White}%"
-	fi
+        	printf "%s" "${retval}${memcent}${White}%"
 }
 
 function get_uptime() {
-	# pulls uptime from source other than... uptime (which doesn't seem to work on cygwin)
-	local uptime=$(</proc/uptime)
+	local retval=""
+	local uptime
+	if [ "${BaseOS}" == "Darwin" ]; then
+		#MacOS does it differently...
+		local boottime=$(sysctl -n kern.boottime | awk '{print $4}' | sed 's/,//g')
+		local unixtime=$(date +%s)
+		uptime=$((${unixtime} - ${boottime}))
+	else
+		# pulls uptime from source other than... uptime (which doesn't seem to work on cygwin)
+		uptime=$(</proc/uptime)
+	fi
 	local timeused=${uptime%%.*}
 	local daysused=0
 	local hoursused=0
 	local minutesused=0
 	local secondsused=0
-	local retval="up "
+	retval="up "
 
 	#break it up into human readable time
 	if [[ ${timeused} && ${timeused-x} ]]; then
@@ -219,7 +265,7 @@ function get_uptime() {
 		retval=${retval}"${Green}$(echo ${minutesused} | sed -e :a -e 's/^.\{1,1\}$/0&/;ta' )${White}m:"
 		retval=${retval}"${Green}$(echo ${secondsused} | sed -e :a -e 's/^.\{1,1\}$/0&/;ta' )${White}s"
 
-		echo -n ${retval}
+		printf "%s" "${retval}"
 	fi
 }
 
@@ -229,11 +275,13 @@ function load_util()
 	local retval=""
 	local batstat=$(battery_status)
 	local upt=$(get_uptime)
-	retval="$(load_diff) $(cpu_load) $(memory_load)"
+	#turning off load_diff cuz it's useless :)
+	#retval=${retval}"$(load_diff) "
+	retval="${retval}$(cpu_load) $(memory_load)"
 	if [[ ${batstat} && ${batstat-x} ]]; then
 		retval="${retval} ${batstat}"
 	fi
-	echo -n "${OPENB}${retval}${CLOSEB}"
+	printf "%s" "${OPENB}${retval}${CLOSEB}"
 }
 
 function path_info()
@@ -242,12 +290,15 @@ function path_info()
 	# Also pulls the count of various files in the dir
 	#    (but only if there's enough room on screen)
 	local retval=""
-	local lengthlimit=${1}
-	local diskloc="${PWD/$HOME/\~}"
+	local lengthlimit=$((${1} + 3))
+	local diskloc="${PWD/$HOME/~}"
+
+	#show the size of the current directory
+	retval=${retval}" ${White}total $(pwd_size)"
 
 	#get the free space and color it
 	if [ -d "${PWD}" ] ; then
-        	local used=$(command df -P "$PWD" | awk 'END {print $5} {sub(/%/,"")}')
+        	local used=$(command df -P "$PWD" | awk 'END {print $5}' | sed s/\%//g)
 		if [ ! "${used}" == "-" ]; then
 			retval=${retval}" ${White}free"
 			if [ ${used} -gt 95 ]; then
@@ -263,7 +314,8 @@ function path_info()
 			used="${Green}-"
 		fi
 		retval=${retval}" ${used}${White}%"
-		retval=${retval}" ${White}#:$(pwd_counts) ${White}=$(pwd_size)"
+		#this shows counts of the files... don't really want it anymore
+		#retval=${retval}" ${White}#:$(pwd_counts) "
 	fi
 
 	#Now trim the path down if the screen is too narrow
@@ -276,24 +328,29 @@ function path_info()
 
 	#Check if the pwd is read-only (not read-write)
 	#and color the text (but not the slashes)
+	local reppat="\/"
+	if [ "${BaseOS}" = "Darwin" ]; then
+		#Don't need to escape the slash on Mac
+		reppat="/"
+	fi
 	if [ ! -w "${PWD}" ] ; then
-        	retval="${Red}RO ${diskloc//\//$White\/$Red}"${retval}
-	        # No 'write' privilege in the current directory.
+	        # No write privilege in the current directory.
+        	retval="${Red}RO ${diskloc//${reppat}/${White}${reppat}${Red}}"${retval}
 	else
-		retval="${Green}${diskloc//\//$White\/$Green}"${retval}
+		retval="${Green}${diskloc//${reppat}/${White}${reppat}${Green}}"${retval}
 	fi
 
-	#We've trimmed the path, now trim out the number of files/dirs (if necessary)
-	#Based around the position of the %
-	curclean=$(cleanesc ${retval})
-	curlength=${#curclean}
-	let maxlength=(${curlength}+${lengthlimit} + 4)
-	if [[ ${maxlength} -gt ${COLUMNS} ]]; then
-		local percloc=$(expr index "${retval}" "%")
-		retval=${retval:0:${percloc}}
-	fi
+#	#We've trimmed the path, now trim out the number of files/dirs (if necessary)
+#	#Based around the position of the %
+#	curclean=$(cleanesc ${retval})
+#	curlength=${#curclean}
+#	let maxlength=(${curlength}+${lengthlimit} + 4)
+#	if [[ ${maxlength} -gt ${COLUMNS} ]]; then
+#		local percloc=$(expr index "${retval}" "%")
+#		retval=${retval:0:${percloc}}
+#	fi
 
-	echo -n ${retval}
+	printf "%s" "${retval}"
 }
 
 function pwd_counts()
@@ -319,21 +376,35 @@ function trim_pwd() {
 	#shrink the pwd to initials if it's too long (leave the actual working dir)
 	local p=${2/#$HOME/\~} b s
 	local slashcount="${PWD//[^\/]/}"
+	local retval=""
 	slashcount=${#slashcount}
 	if [ ${slashcount} -gt 1 ]; then
-		s=${#p}
+		local s=${#p}
 		while [[ $p != "${p//\/}" ]]&&(($s>((${COLUMNS}-$1))))
 		do
 			p=${p#/}
 			[[ $p =~ \.?. ]]
-			b=$b/${BASH_REMATCH[0]}
+			local b=$b/${BASH_REMATCH[0]}
 			p=${p#*/}
 			((s=${#b}+${#p}))
 		done
-		echo ${b/\/~/\~}${b+/}$p
+		retval="${b/\/~/\~}${b+/}$p"
 	else
-		echo ${p}
+		retval="${p}"
 	fi
+	#Now let's make sure there is (or is not) a single /
+	case "${retval}" in
+		/~* | //* )
+			retval="${retval:1}"
+		;;
+		/* | ~* )
+			retval="${retval}"
+		;;
+		* )
+			retval="/${retval}"
+		;;
+	esac
+	printf "%s" "${retval}"
 }
 
 function _git_prompt() {
@@ -359,7 +430,8 @@ function _git_prompt() {
 				branch="(`git describe --all --contains --abbrev=4 HEAD 2> /dev/null ||
 				echo HEAD`)"
 			fi
-		echo -n "${OPENB}${retval}${branch}${CLOSEB}"
+		#echo -n "${OPENB}${retval}${branch}${CLOSEB}"
+		printf "%s" "${OPENB}${retval}${branch}${CLOSEB}"
 		fi
 	fi
 }
@@ -367,9 +439,11 @@ function _git_prompt() {
 function pwd_size() {
 	#totals all files in the pwd and shows the human readable total
 	local TotalBytes
+	local Bytes
+	local suffix
 	let TotalBytes=0
 
-	for Bytes in $(\ls -lA -1 | grep "^-" | awk '{ print $5 }'); do
+	for Bytes in $(\ls -lA | grep "^-" | awk '{ print $5 }'); do
 		let TotalBytes=$TotalBytes+$Bytes
 	done
 
@@ -390,7 +464,7 @@ function pwd_size() {
 		suffix="TB"
 	fi
 
-	echo -n "${Green}${TotalSize}${White}${suffix}"
+	printf "%s" "${Green}${TotalSize}${White}${suffix}"
 }
 
 #Returns error stuff
@@ -401,7 +475,8 @@ function error_result()
 	if [[ ! $Last_Command == 0 ]]; then
 		retval="${OPENB}e${Red}${Last_Command}${CLOSEB}"
 	fi
-    echo -n ${retval}
+    #echo -n ${retval}
+    printf "%s" ${retval}
 }
 
 function battery_status()
@@ -454,7 +529,7 @@ function battery_status()
 		fi
 	done
 	if [[ ${retval} && ${retval-x} ]] ; then
-		echo -n "${White}${BATSTT}${retval}${Color_Off}"
+		printf "%s" "${White}${BATSTT}${retval}${Color_Off}"
 	fi
 }
 
@@ -465,7 +540,7 @@ function get_history()
 	retval=$(trim ${retval})
 	retval=$(echo -n ${retval} | cut -d " " -f1)
 	let retval=${retval}+1
-	echo -n ${retval}
+	printf "%s" "${retval}"
 }
 
 function get_tty()
@@ -483,7 +558,7 @@ function get_tty()
 			retval=${White}${splay}
 		;;
 	esac
-	echo -n ${retval}
+	printf "%s" "${retval}"
 }
 
 function fill_line() {
@@ -496,12 +571,13 @@ function fill_line() {
 		fill="${fill}${FillChar}"
 		let fillsize=${fillsize}-1
 	done
-	echo -n "${fill}"
+	#echo -n "${fill}"
+	printf "%s" "${fill}"
 }
 
 function cleanesc() {
 	local retval=$(echo -n $* | sed "s,\e\[[0-9;]*[a-zA-Z],,g" | sed "s,\\\,,g" | sed "s,e(0qe(B, ,g")
-	echo "$retval"
+	printf "%s" "${retval}"
 }
 
 function color_of_time() {
@@ -549,12 +625,11 @@ function color_of_time() {
 			retval=${Purple}
 		;;
 		esac
-	echo -n ${retval}
+	printf "%s" "${retval}"
 }
 
 # Now ... the prompt.
 PROMPT_COMMAND=prompt_big
-#trap "export H1=$(history 1 | sed -e 's/^[\ 0-9]*//; s/[\d0\d31\d34\d39\d96\d127]*//g; s/\(.\{1,50\}\).*$/\1/g'); echo " DEBUG
 
 function prompt_big {
 	ErrLevel=$(error_result)
@@ -601,6 +676,9 @@ function prompt_big {
 	holdhour=$(trim ${holdhour})
 	local holdmin=$(date +'%M')
 	local holdmeri=$(date +'%P')
+	if [ "${BaseOS}" = "Darwin" ]; then
+		holdmeri=$(date +'%p')
+	fi
 	local colortime=$(color_of_time ${holdhour} ${holdmeri})
 	rightstuff=${rightstuff}"${OPENB}${Green}${holdday} ${colortime}${holdhour}${White}:${colortime}${holdmin}${holdmeri}${CLOSEB}"
 
@@ -621,7 +699,7 @@ function prompt_big {
 	rightstuff=${rightstuff}"$(GetNetwork)"
 	rightstuff=${rightstuff}${LineColor}${FillChar}
         # User@Host (with connection type info):
-	rightstuff=${rightstuff}"${OPENB}$(GetUserColor)${White}@${Purple}${HOSTNAME}${CLOSEB}"
+	rightstuff=${rightstuff}"${OPENB}$(GetUserColor)${White}@${Purple}${HOSTNAME%.*}${CLOSEB}"
 #	rightstuff=${leftstuff}${LineColor}${FillChar}
 	local rightclean=$(cleanesc ${rightstuff})
 	local rightlength=${#rightclean}
@@ -671,7 +749,4 @@ function prompt_big {
 PS2="> "
 PS3="> "
 PS4="+ "
-
-# Try to keep environment pollution down, EPA loves us.
-unset safe_term match_lhs
 

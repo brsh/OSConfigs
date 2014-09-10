@@ -254,19 +254,20 @@ function flag(){
 	fi
 
 	width_head=$(( (${COLUMNS} - ${#message}) / 2 ))
-	width_tail=$(( ${width_head} + 1 ))
+#	width_tail=$(( ${width_head} + 1 ))
+	width_tail=$(( ${width_head} ))
 
-	if [[ $(((${width_tail} + ${width_head}) + ${#message})) -gt ${COLUMNS} ]]; then
+	if [[ $(((${width_tail} + ${width_head}) + ${#message})) -gt $((${COLUMNS} -1)) ]]; then
 		width_tail=$((${width_tail} - 1))
 	fi
 
-	echo -e "\n\n ${InvWhite}$(seq -s ' ' $((${COLUMNS} - 1)) | sed 's/[0-9]//g')${Color_Off}"
+	printf "%b\n" "\n\n ${InvWhite}$(seq -s ' ' $((${COLUMNS} - 1)) | sed 's/[0-9]//g')${Color_Off}"
 
-	echo -en " ${InvYellow}$(seq -s ' ' ${width_head} | sed 's/[0-9]//g')"
-	echo -en "${InvWhite}${message}"
-	echo -e "${InvYellow}$(seq -s ' ' ${width_tail} | sed 's/[0-9]//g')${Color_Off}"
+	printf "%b" " ${InvYellow}$(seq -s ' ' ${width_head} | sed 's/[0-9]//g')" 
+	printf "%b" "${InvWhite}${message}"
+	printf "%b\n" "${InvYellow}$(seq -s ' ' ${width_tail} | sed 's/[0-9]//g')${Color_Off}"
 
-	echo -e " ${InvWhite}$(seq -s ' ' $((${COLUMNS} - 1 )) | sed 's/[0-9]//g')${Color_Off}"
+	printf "%b\n" " ${InvWhite}$(seq -s ' ' $((${COLUMNS} - 1 )) | sed 's/[0-9]//g')${Color_Off}"
 }
 
 
@@ -396,7 +397,6 @@ function mkcd() {
          mkdir -p "$@" && cd "$_"
   fi
 }
-
 
 function cdls() {
 # cd to a directory and ls
@@ -560,7 +560,6 @@ fi
 alias fgrep='fgrep --color=auto'
 alias egrep='egrep --color=auto'
 alias grep='grep --color=auto'
-alias nano='nano -w'
 
 alias ll='ls -alF'
 alias la='ls -A'
@@ -588,25 +587,31 @@ case "${BaseOS}" in
 esac
 
 if [ $UID -ne 0 ]; then
-	alias reboot='sudo reboot'
-	alias shutdown='sudo shutdown -t 2 now -h'
+	case "${BaseOS}" in
+		Darwin | Linux )
+			alias reboot='sudo reboot'
+			alias shutdown='sudo shutdown -t 2 now -h'
+			alias nanobash='sudo nano ${currBashrc} -Y sh'
+		;;
+	esac
 
 	case "${Distro}" in
 
-		##MacOS )
-		##;;
+		MacOS )
+			alias updatedb='sudo /usr/libexec/locate.updatedb'
+		;;
 		Windows* )
 			alias sudo='echo -e "\nSudo is not available in CygWin. Use sudo-s instead."'
 			alias sudo-s='/usr/bin/cygstart --action=runas /usr/bin/mintty -e /usr/bin/bash --login'
-			unalias reboot
-			unalias shutdown
+#			unalias reboot
+#			unalias shutdown
 		;;
 		*buntu* | *Mint* | *ingu* | *etrunne* | *lementar* )
 			alias update='sudo apt-get update && sudo apt-get upgrade'
 			alias dist-upgrade='sudo apt-get update && sudo apt-get dist-upgrade'
 			alias install='sudo apt-get install'
 			alias autoremove='sudo apt-get autoremove'
-			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
+#			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
 		;;
 		*edora* | *Cent* | *Hat* | *oror* | *udunt* | *cientifi* )
 			alias update='sudo yum upgrade'
@@ -617,7 +622,7 @@ if [ $UID -ne 0 ]; then
 			alias update='sudo pacman -Syu'
 			alias install='sudo pacman -S'
 			alias yogurt=yaourt
-			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
+#			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
 			alias update-grub='sudo grub-mkconfig -o /boot/grub/grub.cfg'
 		;;
 	esac

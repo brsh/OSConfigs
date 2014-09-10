@@ -1,12 +1,31 @@
 # do not bell on tab-completion
 #set bell-style none
 
-set meta-flag on
-set input-meta on
+#convert characters with the eighth bit set to an ascii key sequence (default: on)
 set convert-meta off
-set output-meta on
-set show-all-if-ambiguous on
+
+#filename matching and completion in a case-insensitive fashion (default: off)
 set completion-ignore-case On
+
+#number of possibile completions before the user is asked whether the list all (default: 100)
+set completion-query-items 20
+
+#enable eight-bit input (do not clear the eighth bit in the characters it reads), regardless of terminal support (default: off)
+set input-meta on
+#set meta-flag on (duplicate of the above)
+
+#completed directory names have a slash appended (default: on... except in MacOS???)
+set mark-directories on
+
+#display characters with the eighth bit set directly rather than as a meta-prefixed escape sequence (default: off)
+set output-meta on
+
+#words with more than one possible completion: matches will be listed immediately instead of ringing the bell (default: off)
+set show-all-if-ambiguous on
+
+
+# Two escapes clear command line.
+"\e\e": "\C-a\C-k"
 
 $if mode=emacs
 

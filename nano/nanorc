@@ -1,0 +1,22 @@
+## Goes into 
+## 	/etc/ as nanorc
+##	~/ as .nanorc
+
+set nowrap
+set autoindent
+set smooth
+
+## Copy the appropriate files into the appropriate location...
+## On Mac, comment "header" (although check on newer versions):
+## 	for file in /usr/share/nano/*.nanorc; do [[ -f $file ]] && ed -s "$file" <<< $'g/header/s//#header/g\nw\nq'; done
+include "/usr/share/nano/sh.nanorc"
+include "/usr/share/nano/css.nanorc"
+include "/usr/share/nano/html.nanorc"
+include "/usr/share/nano/java.nanorc"
+include "/usr/share/nano/nanorc.nanorc"
+include "/usr/share/nano/perl.nanorc"
+include "/usr/share/nano/php.nanorc"
+include "/usr/share/nano/python.nanorc"
+include "/usr/share/nano/ruby.nanorc"
+include "/usr/share/nano/sh.nanorc"
+include "/usr/share/nano/xml.nanorc"
