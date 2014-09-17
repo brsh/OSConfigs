@@ -126,214 +126,6 @@ function Get-LocalDisk{
     }
 New-Item -path alias:gld -value Get-LocalDisk |out-null
 
-function CountDown() {
-    param(
-    [int]$hours=0, 
-    [int]$minutes=0, 
-    [int]$seconds=0,
-    [switch]$help)
-    $HelpInfo = @'
-
-    Function : CountDown
-    By       : xb90 at http://poshtips.com
-    Date     : 02/22/2011 
-    Purpose  : Pauses a script for the specified period of time and displays
-               a count-down timer to indicate the time remaining.
-    Usage    : Countdown [-Help][-hours n][-minutes n][seconds n]
-               where      
-                      -Help       displays this help
-                      -Hours n    specify the number of hours (default=0)
-                      -Minutes n  specify the number of minutes (default=0)
-                      -Seconds n  specify the number of seconds (default=0)
-                      
-'@ 
-
-    if ($help -or (!$hours -and !$minutes -and !$seconds)){
-        write-host $HelpInfo
-        return
-        }
-    $startTime = get-date
-    $endTime = $startTime.addHours($hours)
-    $endTime = $endTime.addMinutes($minutes)
-    $endTime = $endTime.addSeconds($seconds)
-    $timeSpan = new-timespan $startTime $endTime
-    write-host $([string]::format("`nScript paused for {0:#0}:{1:00}:{2:00}",$hours,$minutes,$seconds)) -backgroundcolor black -foregroundcolor yellow
-    while ($timeSpan -gt 0) {
-        $timeSpan = new-timespan $(get-date) $endTime
-        write-host "`r".padright(40," ") -nonewline
-        write-host "`r" -nonewline
-        write-host $([string]::Format("`rTime Remaining: {0:d2}:{1:d2}:{2:d2}", `
-            $timeSpan.hours, `
-            $timeSpan.minutes, `
-            $timeSpan.seconds)) `
-            -nonewline -backgroundcolor black -foregroundcolor yellow
-        sleep 1
-        }
-    write-host ""
-    }
-new-item -path alias:CntDn -value CountDown |out-null
-
-function NewTimestampedFile() {
-Param
-	(
-	[string]$Folder="",
-	[string]$Prefix="temp",
-	[string]$Type="log",
-    [switch]$Help
-	)
-    $HelpInfo = @'
-
-    Function : NewTimestampedFile
-    By       : xb90 at http://poshtips.com
-    Date     : 02/23/2011 
-    Purpose  : Creates a unique timestamp-signature text file.
-    Usage    : NewTempFile [-Help][-folder <text>][-prefix <text>][-type <text>]
-               where      
-                      -Help       displays this help
-                      -Folder     specify a subfolder or complete path
-                                  where the new file will be created
-                      -Prefix     a text string that will be used as the 
-                                  the new file prefix (default=TEMP)
-                      -Type       the filetype to use (default=LOG)
-    Details  : This function will create a new file and any folder (if specified)
-               and return the name of the file.
-               If no parameters are passed, a default file will be created in the
-               current directory. Example:
-                                           temp_20110223-164621-0882.log
-'@    
-    if ($help){
-        write-host $HelpInfo
-        return
-        }
-	
-	#create the folder (if needed) if it does not already exist
-	if ($folder -ne "") {
-		if (!(test-path $folder)) {
-			write-host "creating new folder `"$folder`"..." -back black -fore yellow
-			new-item $folder -type directory | out-null
-			}
-		if (!($folder.endswith("\"))) {
-			$folder += "\"
-			}
-		}
-
-	#generate a unique file name (with path included)
-	$x = get-date
-	$TempFile=[string]::format("{0}_{1}{2:d2}{3:d2}-{4:d2}{5:d2}{6:d2}-{7:d4}.{8}",
-		$Prefix,
-		$x.year,$x.month,$x.day,$x.hour,$x.minute,$x.second,$x.millisecond,
-		$Type)
-	$TempFilePath=[string]::format("{0}{1}",$folder,$TempFile)
-		
-	#create the new file
-	if (!(test-path $TempFilePath)) {
-		new-item -path $TempFilePath -type file | out-null
-		}
-	else {
-		throw "File `"$TempFilePath`" Already Exists!"
-		}
-
-	return $TempFilePath
-}
-new-item -path alias:ntf -value NewTimestampedFile |out-null
-
-function Export-PSCredential {
-    param ( 
-        #$Credential = (Get-Credential), 
-        $Credential = "", 
-        $Path = "credentials.enc.xml",
-        [switch]$Help)
-        
-    $HelpInfo = @'
-
-    Function : Export-PSCredential
-    Date     : 02/24/2011 
-    Purpose  : Exports user credentials to an encoded XML file. Resulting file 
-               can be imported using function: Import-PSCredential
-    Usage    : Export-PSCredential [-Credential <[domain\]username>][-Path <filename>][-Help]
-               where      
-                  -Credential specify the user account for which we will create a credential file
-                              password will be collected interactively
-                  -Path       specify the file to which credential information will be written.
-                              if omitted, the file will be "credentials.enc.xml" in the current
-                              working directory.
-                  -Help       displays this help information
-    Note     : Import-PSCredential can be used to decode this file into a PSCredential object and
-               MUST BE executed using the same user account that was used to create the encoded file.
-               
-'@    
-
-    if ($help){
-        write-host $HelpInfo
-        return
-        }
-    $Credential = (Get-Credential $credential)
-    # Look at the object type of the $Credential parameter to determine how to handle it
-    switch ( $Credential.GetType().Name ) {
-        # It is a credential, so continue
-        PSCredential { continue }
-        # It is a string, so use that as the username and prompt for the password
-        String { $Credential = Get-Credential -credential $Credential }
-        # In all other caess, throw an error and exit
-        default { Throw "You must specify a credential object to export to disk." }
-        }
-    # Create temporary object to be serialized to disk
-    $export = "" | Select-Object Username, EncryptedPassword
-    # Give object a type name which can be identified later
-    $export.PSObject.TypeNames.Insert(0,’ExportedPSCredential’)
-    $export.Username = $Credential.Username
-    # Encrypt SecureString password using Data Protection API
-    # Only the current user account can decrypt this cipher
-    $export.EncryptedPassword = $Credential.Password | ConvertFrom-SecureString
-    # Export using the Export-Clixml cmdlet
-    $export | Export-Clixml $Path
-    Write-Host -foregroundcolor Green "Credentials saved to: " -noNewLine
-    # Return FileInfo object referring to saved credentials
-    Get-Item $Path
-	}
-new-item -path alias:ecred -value Export-PSCredential |out-null
-
-function Import-PSCredential {
-    param ( $Path = "credentials.enc.xml",
-    [switch]$Help)
-        
-    $HelpInfo = @'
-
-    Function : Import-PSCredential
-    Date     : 02/24/2011 
-    Purpose  : Imports user credentials from an encoded XML file. 
-    Usage    : $cred = Import-PSCredential [-Path <filename>][-Help]
-               where   
-                  $cred       will contain a PSCredential object upon successful completion               
-                  -Path       specify the file from which credentials will be read
-                              if omitted, the file will be "credentials.enc.xml" in the current
-                              working directory.
-                  -Help       displays this help information
-    Note     : Credentials can only be decoded by the same user account that was used to 
-               create the encoded XML file
-               
-'@    
-
-    if ($help){
-        write-host $HelpInfo
-        return
-        }
-
-    # Import credential file
-        $import = Import-Clixml $Path
-        # Test for valid import
-        if ( !$import.UserName -or !$import.EncryptedPassword ) {
-            Throw "Input is not a valid ExportedPSCredential object, exiting."
-	        }
-        $Username = $import.Username
-        # Decrypt the password and store as a SecureString object for safekeeping
-        $SecurePass = $import.EncryptedPassword | ConvertTo-SecureString
-        # Build the new credential object
-        $Credential = New-Object System.Management.Automation.PSCredential $Username, $SecurePass
-        Write-Output $Credential
-	}
-new-item -path alias:icred -value Import-PSCredential |out-null
-
 New-Alias which get-command
 
 function Get-IP {ipconfig | where-object {$_ –like “*IPv4 Address*”}}
@@ -460,7 +252,7 @@ write-host "Translate-FromSID    ToSID      Get SID from UserName" -fore Yellow
 write-host "Ping-Port                       Test if a port is open (default=80)" -fore Yellow
 write-host "Write-Trace                     Write to a log file in Trace32-format" -fore Yellow
 write-host "Get-DirInfo          ll         Linux-style dir list with color" -fore yellow
-
+write-host "Get-WifiNetwork                 List nearby Wifi networks" -fore yellow
 
 Write-Host ""
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -514,19 +306,69 @@ foreach ($alias in $PgmAliasList) {
 	}
 write-host ""
 
-#function ll { Get-DirInfo $args }
-#function la { Get-DirInfo -force $args }
+function get-uptime {
+        $WMIHash = @{
+            ComputerName = "."
+            ErrorAction = 'Stop'
+            Query= "SELECT LastBootUpTime FROM Win32_OperatingSystem"
+            NameSpace='Root\CimV2'
+        }
+        $wmi = Get-WmiObject @WMIHash
+        $retval = (Get-Date) - $($wmi.ConvertToDateTime($wmi.LastBootUpTime))
+        return $retval
+}
 
- 
+function get-battery {
+    $charge = get-wmiobject Win32_Battery
+    return $charge    
+}
+
 function prompt {
     # Make sure Windows and .Net know where we are (they can only handle the FileSystem)
     [Environment]::CurrentDirectory = (Get-Location -PSProvider FileSystem).ProviderPath
     # Also, put the path in the title ... (don't restrict this to the FileSystem
     $Host.UI.RawUI.WindowTitle = "{0} - {1} ({2})" -f $global:WindowTitlePrefix,$pwd.Path,$pwd.Provider.Name
 
+    $uppity = (get-uptime)
+
+    $battstat = ""
+    $batt = (get-battery)
+    switch ($batt.BatteryStatus) {
+        1 { $battstat = "-"; break }
+        2 { $battstat = "AC"; break }
+        3 { $battstat = "="; break }
+        4 { $battstat = "_"; break }
+        5 { $battstat = "!"; break }
+        6 { $battstat = "+"; break }
+    }
+
+    
+    #Battery
+    If (($battstat -ne "") -and ($battstat -ne "AC")) {
+        Write-Host "`n[" -Fore "White" -NoNewLine
+        Write-Host "$battstat" -Fore "Green" -NoNewLine
+        Write-Host "$($batt.EstimatedChargeRemaining)" -Fore "Green" -NoNewLine
+        Write-Host "] " -Fore "White" -NoNewLine
+    }
+
+    #Uptime
+    Write-Host "`n[up " -Fore "White" -NoNewLine
+    Write-Host "$($uppity.days)" -Fore "Green" -NoNewLine
+    Write-Host "d " -Fore "White" -NoNewLine
+    Write-Host "$($uppity.hours)" -Fore "Green" -NoNewLine
+    Write-Host "h:" -Fore "White" -NoNewLine
+    Write-Host "$($uppity.minutes)" -Fore "Green" -NoNewLine
+    Write-Host "m:" -Fore "White" -NoNewLine
+    Write-Host "$($uppity.seconds)" -Fore "Green" -NoNewLine
+    Write-Host "s] " -Fore "White" -NoNewLine
+
+    #Day and Time
     Write-Host "`n[" -Fore "White" -NoNewLine
+    Write-Host "$((get-date).ToString('ddd')) " -Fore "Green" -NoNewLine
     Write-Host "$((get-date).ToShortTimeString().ToLower())" -Fore "Yellow" -NoNewLine
     Write-Host "] " -Fore "White" -NoNewLine
+    
+    #Username @ machine
     Write-Host "[" -Fore "White" -NoNewLine
     Write-Host "$env:username" -Fore "Green" -NoNewLine
     Write-Host "@" -Fore "White" -NoNewLine
@@ -534,6 +376,8 @@ function prompt {
 
     if($IsAdmin) { Write-Host " as ADMIN" -Fore "Red" -NoNewLine }
     Write-Host "] " -Fore "White" -NoNewLine
+
+    #Current Directory
     Write-Host "[" -Fore "White" -NoNewLine
     Write-Host "$pwd" -ForegroundColor "Cyan" -NoNewLine
     Write-Host "] " -Fore "White" 
@@ -541,3 +385,229 @@ function prompt {
     
     return " "
  }
+
+ function Get-WifiNetwork {
+    #Note try : Get-WifiNetwork | select index, ssid, signal, 'radio type' | sort signal -desc | ft -auto
+ end {
+  netsh wlan sh net mode=bssid | % -process {
+    if ($_ -match '^SSID (\d+) : (.*)$') {
+        $current = @{}
+        $networks += $current
+        $current.Index = $matches[1].trim()
+        $current.SSID = $matches[2].trim()
+    } else {
+        if ($_ -match '^\s+(.*)\s+:\s+(.*)\s*$') {
+            $current[$matches[1].trim()] = $matches[2].trim()
+        }
+    }
+  } -begin { $networks = @() } -end { $networks|% { new-object psobject -property $_ } }
+ }
+}
+
+function CountDown() {
+    param(
+    [int]$hours=0, 
+    [int]$minutes=0, 
+    [int]$seconds=0,
+    [switch]$help)
+    $HelpInfo = @'
+
+    Function : CountDown
+    By       : xb90 at http://poshtips.com
+    Date     : 02/22/2011 
+    Purpose  : Pauses a script for the specified period of time and displays
+               a count-down timer to indicate the time remaining.
+    Usage    : Countdown [-Help][-hours n][-minutes n][seconds n]
+               where      
+                      -Help       displays this help
+                      -Hours n    specify the number of hours (default=0)
+                      -Minutes n  specify the number of minutes (default=0)
+                      -Seconds n  specify the number of seconds (default=0)     
+
+'@ 
+
+    if ($help -or (!$hours -and !$minutes -and !$seconds)){
+        write-host $HelpInfo
+        return
+        }
+    $startTime = get-date
+    $endTime = $startTime.addHours($hours)
+    $endTime = $endTime.addMinutes($minutes)
+    $endTime = $endTime.addSeconds($seconds)
+    $timeSpan = new-timespan $startTime $endTime
+    write-host $([string]::format("`nScript paused for {0:#0}:{1:00}:{2:00}",$hours,$minutes,$seconds)) -backgroundcolor black -foregroundcolor yellow
+    while ($timeSpan -gt 0) {
+        $timeSpan = new-timespan $(get-date) $endTime
+        write-host "`r".padright(40," ") -nonewline
+        write-host "`r" -nonewline
+        write-host $([string]::Format("`rTime Remaining: {0:d2}:{1:d2}:{2:d2}", `
+            $timeSpan.hours, `
+            $timeSpan.minutes, `
+            $timeSpan.seconds)) `
+            -nonewline -backgroundcolor black -foregroundcolor yellow
+        sleep 1
+        }
+    write-host ""
+    }
+new-item -path alias:CntDn -value CountDown |out-null
+
+function NewTimestampedFile() {
+Param
+  (
+  [string]$Folder="",
+  [string]$Prefix="temp",
+  [string]$Type="log",
+    [switch]$Help
+  )
+    $HelpInfo = @'
+
+    Function : NewTimestampedFile
+    By       : xb90 at http://poshtips.com
+    Date     : 02/23/2011 
+    Purpose  : Creates a unique timestamp-signature text file.
+    Usage    : NewTempFile [-Help][-folder <text>][-prefix <text>][-type <text>]
+               where      
+                      -Help       displays this help
+                      -Folder     specify a subfolder or complete path
+                                  where the new file will be created
+                      -Prefix     a text string that will be used as the 
+                                  the new file prefix (default=TEMP)
+                      -Type       the filetype to use (default=LOG)
+    Details  : This function will create a new file and any folder (if specified)
+               and return the name of the file.
+               If no parameters are passed, a default file will be created in the
+               current directory. Example:
+                                           temp_20110223-164621-0882.log
+'@    
+    if ($help){
+        write-host $HelpInfo
+        return
+        }
+  
+  #create the folder (if needed) if it does not already exist
+  if ($folder -ne "") {
+    if (!(test-path $folder)) {
+      write-host "creating new folder `"$folder`"..." -back black -fore yellow
+      new-item $folder -type directory | out-null
+      }
+    if (!($folder.endswith("\"))) {
+      $folder += "\"
+      }
+    }
+
+  #generate a unique file name (with path included)
+  $x = get-date
+  $TempFile=[string]::format("{0}_{1}{2:d2}{3:d2}-{4:d2}{5:d2}{6:d2}-{7:d4}.{8}",
+    $Prefix,
+    $x.year,$x.month,$x.day,$x.hour,$x.minute,$x.second,$x.millisecond,
+    $Type)
+  $TempFilePath=[string]::format("{0}{1}",$folder,$TempFile)
+    
+  #create the new file
+  if (!(test-path $TempFilePath)) {
+    new-item -path $TempFilePath -type file | out-null
+    }
+  else {
+    throw "File `"$TempFilePath`" Already Exists!"
+    }
+
+  return $TempFilePath
+}
+new-item -path alias:ntf -value NewTimestampedFile |out-null
+
+function Export-PSCredential {
+    param ( 
+        #$Credential = (Get-Credential), 
+        $Credential = "", 
+        $Path = "credentials.enc.xml",
+        [switch]$Help)
+        
+    $HelpInfo = @'
+
+    Function : Export-PSCredential
+    Date     : 02/24/2011 
+    Purpose  : Exports user credentials to an encoded XML file. Resulting file 
+               can be imported using function: Import-PSCredential
+    Usage    : Export-PSCredential [-Credential <[domain\]username>][-Path <filename>][-Help]
+               where      
+                  -Credential specify the user account for which we will create a credential file
+                              password will be collected interactively
+                  -Path       specify the file to which credential information will be written.
+                              if omitted, the file will be "credentials.enc.xml" in the current
+                              working directory.
+                  -Help       displays this help information
+    Note     : Import-PSCredential can be used to decode this file into a PSCredential object and
+               MUST BE executed using the same user account that was used to create the encoded file.
+               
+'@    
+
+    if ($help){
+        write-host $HelpInfo
+        return
+        }
+    $Credential = (Get-Credential $credential)
+    # Look at the object type of the $Credential parameter to determine how to handle it
+    switch ( $Credential.GetType().Name ) {
+        # It is a credential, so continue
+        PSCredential { continue }
+        # It is a string, so use that as the username and prompt for the password
+        String { $Credential = Get-Credential -credential $Credential }
+        # In all other caess, throw an error and exit
+        default { Throw "You must specify a credential object to export to disk." }
+        }
+    # Create temporary object to be serialized to disk
+    $export = "" | Select-Object Username, EncryptedPassword
+    # Give object a type name which can be identified later
+    $export.PSObject.TypeNames.Insert(0,’ExportedPSCredential’)
+    $export.Username = $Credential.Username
+    # Encrypt SecureString password using Data Protection API
+    # Only the current user account can decrypt this cipher
+    $export.EncryptedPassword = $Credential.Password | ConvertFrom-SecureString
+    # Export using the Export-Clixml cmdlet
+    $export | Export-Clixml $Path
+    Write-Host -foregroundcolor Green "Credentials saved to: " -noNewLine
+    # Return FileInfo object referring to saved credentials
+    Get-Item $Path
+  }
+new-item -path alias:ecred -value Export-PSCredential |out-null
+
+function Import-PSCredential {
+    param ( $Path = "credentials.enc.xml",
+    [switch]$Help)
+        
+    $HelpInfo = @'
+
+    Function : Import-PSCredential
+    Date     : 02/24/2011 
+    Purpose  : Imports user credentials from an encoded XML file. 
+    Usage    : $cred = Import-PSCredential [-Path <filename>][-Help]
+               where   
+                  $cred       will contain a PSCredential object upon successful completion               
+                  -Path       specify the file from which credentials will be read
+                              if omitted, the file will be "credentials.enc.xml" in the current
+                              working directory.
+                  -Help       displays this help information
+    Note     : Credentials can only be decoded by the same user account that was used to 
+               create the encoded XML file
+               
+'@    
+
+    if ($help){
+        write-host $HelpInfo
+        return
+        }
+
+    # Import credential file
+        $import = Import-Clixml $Path
+        # Test for valid import
+        if ( !$import.UserName -or !$import.EncryptedPassword ) {
+            Throw "Input is not a valid ExportedPSCredential object, exiting."
+          }
+        $Username = $import.Username
+        # Decrypt the password and store as a SecureString object for safekeeping
+        $SecurePass = $import.EncryptedPassword | ConvertTo-SecureString
+        # Build the new credential object
+        $Credential = New-Object System.Management.Automation.PSCredential $Username, $SecurePass
+        Write-Output $Credential
+  }
+new-item -path alias:icred -value Import-PSCredential |out-null
