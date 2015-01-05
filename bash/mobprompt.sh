@@ -33,6 +33,7 @@ FillChar="─"
 #the battery charge/discharge symbols
 battdn="▼"
 battup="▲"
+battbolt="⌁"
 
 
 ########################
@@ -148,9 +149,8 @@ function cpu_load()
 		#SYSLOAD=$(top -l 1 -n1 | fgrep "CPU" | head -1 | cut -d , -f3)
 		SYSLOAD=$(ps aux | awk {'sum+=$3;print sum'} | tail -n 1)
 	else
-		SYSLOAD=$(top -b -n2 -d 0.1 | fgrep "Cpu(s)" | tail -1 | cut -d , -f4)
-	SYSLOAD=$(trim "${SYSLOAD}")
-	SYSLOAD=$(echo -n ${SYSLOAD} | cut -d " " -f1 | awk '{ print 100-$1}' )
+	#Arch's top defaults to Cpu1 Cpu2 etc; Fed still does Cpu(s)
+	SYSLOAD=$(top -b -n 2 -d 0.1 | tr '[' ' ' | awk '/^%Cpu[0-9]/ {sum+=$4; line+=1; }; /^%Cpu\(s\)/ {sum+=(100-$8); line+=1}; END { printf "%.1f", sum/line }')
 	fi
 
 	if [[ ${SYSLOAD} && ${SYSLOAD-x} ]]; then
@@ -290,36 +290,38 @@ function path_info()
 	# Also pulls the count of various files in the dir
 	#    (but only if there's enough room on screen)
 	local retval=""
+	local totval=""
+	local freval=""
 	local lengthlimit=$((${1} + 3))
 	local diskloc="${PWD/$HOME/~}"
 
 	#show the size of the current directory
-	retval=${retval}" ${White}total $(pwd_size)"
+	totval=" ${White}total $(pwd_size)"
 
 	#get the free space and color it
 	if [ -d "${PWD}" ] ; then
         	local used=$(command df -P "$PWD" | awk 'END {print $5}' | sed s/\%//g)
 		if [ ! "${used}" == "-" ]; then
-			retval=${retval}" ${White}free"
+			freval=" ${White}free"
 			if [ ${used} -gt 95 ]; then
-				retval=${retval}${BRed}           # Disk almost full (>95%).
+				freval=${freval}${BRed}           # Disk almost full (>95%).
 			elif [ ${used} -gt 80 ]; then
-				retval=${retval}${Yellow}            # Free disk space almost gone.
+				freval=${freval}${Yellow}            # Free disk space almost gone.
 			else
-				retval=${retval}${Green}           # Free disk space is ok.
+				freval=${freval}${Green}           # Free disk space is ok.
 			fi
 			let used=100-${used}
 		else
 			# Current directory is size '-' (like /proc, /sys etc).
 			used="${Green}-"
 		fi
-		retval=${retval}" ${used}${White}%"
+		freval=${freval}" ${used}${White}%"
 		#this shows counts of the files... don't really want it anymore
-		#retval=${retval}" ${White}#:$(pwd_counts) "
+		#freval=${freval}" ${White}#:$(pwd_counts) "
 	fi
 
 	#Now trim the path down if the screen is too narrow
-	local curclean=$(cleanesc ${retval})
+	local curclean=$(cleanesc ${retval}${totval}${freval})
 	local curlength=${#curclean}
 	local maxlength=0
 	let maxlength=(${curlength}+${lengthlimit})
@@ -328,7 +330,7 @@ function path_info()
 
 	#Check if the pwd is read-only (not read-write)
 	#and color the text (but not the slashes)
-	local reppat="\/"
+	local reppat="/"
 	if [ "${BaseOS}" = "Darwin" ]; then
 		#Don't need to escape the slash on Mac
 		reppat="/"
@@ -349,6 +351,17 @@ function path_info()
 #		local percloc=$(expr index "${retval}" "%")
 #		retval=${retval:0:${percloc}}
 #	fi
+
+	#Trim out Total dir size if we don't have enough space for it
+	curclean=$(cleanesc ${retval}${totval}${freval})
+	curlength=${#curclean}
+	let maxlength=(${curlength}+${lengthlimit} + 4)
+        if [[ ${maxlength} -gt ${COLUMNS} ]]; then
+#                local totloc=$(expr index "${retval}" " total ")
+                retval="${retval}${freval}"
+	else
+		retval="${retval}${totval}${freval}"
+        fi
 
 	printf "%s" "${retval}"
 }
@@ -497,15 +510,16 @@ function battery_status()
 			local COLOUR="$Red"
 
 			case "${BATSTATE}" in
-				'Charged')
-					BATSTT=""
+				'Charged' | 'Full')
+					BATSTT="${White}${battbolt}${Color_Off}"
 				;;
 				'Charging')
-					BATSTT="${Green}${battup}${Color_Off} "
+					BATSTT="${Green}${battup}${Color_Off}"
 				;;
 				'Discharging')
 					BATSTT="${Red}${battdn}${Color_Off}"
 				;;
+
 			esac
 
 			# prevent a charge of more than 100% displaying
@@ -639,7 +653,7 @@ function prompt_big {
 	local outstuff=""
 	local LineColor=${IWhite}
 	#Create holder variable to be able to get console size
-	#The error from the last command - sets the line color to red 
+	#The error from the last command - sets the line color to red
 	if [[ ${ErrLevel} && ${ErrLevel-x} ]]; then
 		LineColor=${Red}
 		#leftstuff=${leftstuff}"\${ErrLevel}${LineColor}${FillChar}"
@@ -675,10 +689,10 @@ function prompt_big {
 	local holdhour=$(date +'%_I')
 	holdhour=$(trim ${holdhour})
 	local holdmin=$(date +'%M')
-	local holdmeri=$(date +'%P')
-	if [ "${BaseOS}" = "Darwin" ]; then
-		holdmeri=$(date +'%p')
-	fi
+	local holdmeri=$(date +%p | tr [:upper:] [:lower:])
+#	if [ "${BaseOS}" = "Darwin" ]; then
+#		holdmeri=$(date +'%p')
+#	fi
 	local colortime=$(color_of_time ${holdhour} ${holdmeri})
 	rightstuff=${rightstuff}"${OPENB}${Green}${holdday} ${colortime}${holdhour}${White}:${colortime}${holdmin}${holdmeri}${CLOSEB}"
 

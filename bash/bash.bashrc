@@ -192,7 +192,7 @@ function list_colors {
 	local SPACER=""
 	local HEADER="40m  100m 41m  101m 42m  102m 43m  103m\
  44m  104m 45m  105m 46m  106m 47m  107m";
-	echo -e "\n           ${HEADER}"
+	printf "\n           ${HEADER}\n"
 for effect in 0 1 2 4 5 7
 do #echo -en "${effect} "
 	for FGs in 'm' '1m' \
@@ -212,16 +212,16 @@ do #echo -en "${effect} "
 		if [ ${#SPACER} -lt 5 ]; then
 			SPACER="${FG} "
 		fi
-        	echo -en "${SPACER}\e[$FG${T}"
+        	printf "${SPACER}\e[$FG${T}"
 #        for BG in 40m 40m 41m 41m 101m 101m 42m 42m 102m 102m 43m 43m 103m 103m 44m 44m 104m 104m 45m 45m 105m 105m 46m 46m 106m 106m 47m 47m 107m 107m;
         for BG in 40m 100m 41m 101m 42m 102m 43m 103m 44m 104m 45m 105m 46m 106m 47m 107m;
-                do echo -en "\e[$FG\e[${BG}${T}\e[0m";
+                do printf "\e[$FG\e[${BG}${T}\e[0m";
         done
-        echo;
+        printf "\n";
 	done
 #echo;
 done
-echo -e "           ${HEADER}"
+printf "           ${HEADER}"
 #echo
 }
 
@@ -230,12 +230,12 @@ function list_colors_256 {
 ## BF Format: <Esc>[48;5;COLORm
 for fgbg in 38 48 ; do
 	for color in {0..256} ; do
-		echo -en "\e[${fgbg};5;${color}m ${color}\t\e[0m"
+		printf "\e[${fgbg};5;${color}m ${color}\t\e[0m"
 		if [ $((($color + 1) % 10)) == 0 ] ; then
-			echo 
+			printf "\n" 
 		fi
 	done
-	echo 
+	printf "\n" 
 done
 }
 
@@ -338,7 +338,7 @@ function toupper() {
         echo "Usage: upper word"
         return 1
     fi
-    echo ${@^^}
+    echo ${@} | tr '[:lower:]' '[:upper:]'
 }
 
 function tolower() {
@@ -347,7 +347,7 @@ function tolower() {
         echo "Usage: lower word"
         return 1
     fi
-    echo ${@,,}
+    echo ${@} | tr '[:upper:]' '[:lower:]'
 }
 
 
@@ -577,6 +577,7 @@ case "${BaseOS}" in
 	Darwin )
 		alias perm='stat -f "%7Op %Sp%t%Su %SHp%t%Sg %SMp%tother %SLp%t%SN%ST"'
 		alias ls='\ls -FhG'
+		alias diff='diff -y'
 		export CLICOLOR=1
 		export LSCOLORS=GxFxCxDxBxegedabagaced
 	;;
@@ -624,6 +625,7 @@ if [ $UID -ne 0 ]; then
 			alias yogurt=yaourt
 #			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
 			alias update-grub='sudo grub-mkconfig -o /boot/grub/grub.cfg'
+			alias nanogrub='sudo nano /etc/default/grub'
 		;;
 	esac
 fi
