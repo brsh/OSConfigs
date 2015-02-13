@@ -17,7 +17,7 @@ case "${BaseOS}" in
 		Distro="MacOS"
 	;;
 	Linux )
-		Distro=$(cat /etc/*-release | grep ^NAME= | cut -d = -f2)
+		Distro=$(cat /etc/*-release 2> /dev/null | grep ^NAME= | cut -d = -f2)
 	;;
 	CYGWIN* )
 		Distro="Windows"
