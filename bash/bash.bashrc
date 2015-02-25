@@ -626,6 +626,12 @@ if [ $UID -ne 0 ]; then
 #			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
 			alias update-grub='sudo grub-mkconfig -o /boot/grub/grub.cfg'
 			alias nanogrub='sudo nano /etc/default/grub'
+		function reflect_mirrors() {
+sudo bash -c 'wget -O /etc/pacman.d/mirrorlist.backup https://www.archlinux.org/mirrorlist/all/ && cp /etc/pacman.d/mirrorlist.backup /etc/pacman.d/mirrorlist && reflector --verbose --country "United States" -l 200 -p http --sort rate --save /etc/pacman.d/mirrorlist'
+		}
+
+
+
 		;;
 	esac
 fi
