@@ -59,7 +59,9 @@ function out-Heading {
         #Makes a pretty (and consistent) heading
 	local sT=${*}
 	local w=${#sT}
-	local i=$(stty size | cut -d" " -f2)
+	local i=0
+	i=$(stty size 2> /dev/null | cut -d" " -f2)
+	if (( i < 1 )); then i=75; fi
 	local f=$(( i - w ))
         printf "${Heading}"
         printf "${*}"

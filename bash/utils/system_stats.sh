@@ -160,20 +160,31 @@ function get-hardware {
 	local kerndate=$(uname -v)
 	kerndate="${kerndate:(-28)}"
 
+	local CurrLoad=$(cat /proc/loadavg | awk {'print $3 * 100 " %"}')
+	local memfree=$(free -m | head -n 2 | tail -n 1 | awk {'print $4'})
+	local memtotal=$(free -m | head -n 2 | tail -n 1 | awk {'print $2'})
+
+
+
 	local nomen=$(hostname -f)
 
 	local uptime=$(uptime -p | sed 's/up //g')
-	#local lastfewboots=$(last -wa reboot | head -n 6 | sed s/reboot\ // | sed s/system\ boot\ \ /\ \ \ \ \ \ \ \ \ \ \ \ \ \ /)
-#	local lastfewboots=$(last -wa reboot -n 6 | awk ' /^reboot/ { $1=$2=$3=""; print "    " $0 }')
 	local lastfewboots=$(last -wax | awk ' BEGIN { times=0 } /^reboot|^shutdown/ { sub("reboot   ",""); sub("shutdown ", ""); sub("system ", ""); print "          " $0; times+=1; if (times==7) exit }')
 
 	out-Heading "System Information"
 	printf "   ${Item}Hostname:${Color_Off}\t${Text}${nomen}\n"
 	printf "   ${Item}CPU:${Color_Off}\t\t${Text}${procval}\n"
 	printf "   ${Item}Cores:${Color_Off}\t${Text}${socCorThr}${Color_Off}\n"
-	printf "   ${Item}OS Ver:${Color_Off}\t${Text}${osver} / ${kernver} ${kerndate}${Color_Off}\n"
+	printf "   ${Item}Distro:${Color_Off}\t${Text}${osver}\n"
+	printf "   ${Item}Kernel:${Color_Off}\t${Text}${kernver} ${kerndate}${Color_Off}\n"
+
+	printf "\n"
+	echo -en "   ${Item}CPU Load:${Color_Off} \t${Text}${CurrLoad}${Color_Off}\n"
+	printf "   ${Item}Memory:${Color_Off}\t${Text}$(printf "%'d" ${memfree})Mb free / $(printf "%'d" ${memtotal})Mb total${Color_Off}\n"
 	printf "   ${Item}Up for:${Color_Off} \t${Text}${uptime}${Color_Off}\n"
-	printf "\n   ${Item}Recent Boot History:${Color_Off}\n"
+	printf "\n"
+
+	printf "   ${Item}Recent Boot History:${Color_Off}\n"
 	printf "${Color_Off}${Text}${lastfewboots}${Color_Off}\n"
 	printf "\n"
 }
@@ -265,8 +276,10 @@ function HowLongUntil {
 	echo " ~Days~Next Date~Years" | awk 'BEGIN{FS="~"}{ printf "%-23s %6s        %-10s        %5s", $1, $2, $3, $4; }'
 	printf "\n"
 
+####	if [ -r "${HOME}/.calendar/calendar" ]; then
+
 	#here's where we parse the file
-	local Where="$(dirname $0)/data"
+	local Where="${HOME}/data"
 	if [ -r "${Where}/dates.txt" ]; then
 		while IFS=, read -r f1 f2 f3; do
 			OutBDay "${f2}" "${f1}" "${f3}"
@@ -329,18 +342,30 @@ function Working {
 ## Sets up for selecting which section at the command line
 ## The single number gives 1 section
 ## No number defaults to 99 ... which gives most sections
-## Sections can be disabled from the full list by setting the 
-##     -gt to more than 99
+## Sections can be disabled from the full list by setting
+##   it's -gt to more than 99
 ## A single section will include a blank line to start
+## (that's what the 'if -lt 90' bit at the start does)
 What=${1:-99}
 
+if [[ "${What}" == "auto" ]]; then
+	exec 1>/etc/motd 2>&1
+	What=99
+fi
 if [ ${What} -lt 90 ]; then echo " "; fi
+
+## Print a Run at x day and time header
+out-Heading "Script Run"
+printf "   $(date '+%a, %D, %r')\n\n"
+
 if [ ${What} -eq 1 ] || [ ${What} -gt 90 ]; then get-hardware; fi
 if [ ${What} -eq 2 ] || [ ${What} -gt 90 ]; then get-net; fi
 if [ ${What} -eq 3 ] || [ ${What} -gt 90 ]; then get-disk; fi
-#if [ ${What} -eq 4 ] || [ ${What} -gt 90 ]; then get-screen; fi
-#if [ ${What} -eq 5 ] || [ ${What} -gt 90 ]; then get-panics; fi
+if [ ${What} -eq 4 ] || [ ${What} -gt 999 ]; then get-screen; fi
+if [ ${What} -eq 5 ] || [ ${What} -gt 999 ]; then get-panics; fi
 if [ ${What} -eq 6 ] || [ ${What} -gt 90 ]; then get-users; fi
 if [ ${What} -eq 7 ] || [ ${What} -gt 90 ]; then date-info; fi
 if [ ${What} -eq 8 ] || [ ${What} -gt 90 ]; then HowLongUntil; fi
-if [ ${What} -eq 75 ]; then Working; fi 
+if [ ${What} -eq 75 ]; then Working; fi
+
+printf "\n"
