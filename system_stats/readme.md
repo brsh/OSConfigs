@@ -1,3 +1,7 @@
+SUPERSEDED by OSConfigs/bash/utils
+
+THIS IS THE OLD VERSION!!
+
 Updates /etc/motd with "current stats"
 
 Recommend placing in root's crontab as follows:<br>
