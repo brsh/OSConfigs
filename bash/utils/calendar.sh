@@ -1,6 +1,7 @@
 #!/bin/bash
 ScriptLoc="$(dirname $0)/lib"
 source ${ScriptLoc}/lib_colors.sh
+source ${ScriptLoc}/lib_os.sh
 
 cBackground=${On_Black}
 cForeground=${White}
@@ -17,11 +18,32 @@ function trim() {
 	echo -n "$var"
 }
 
+function CheckDistro() {
+	local retval="cal"
+	local Distro="$(whichOS)"
+	case "${Distro}" in
+		*buntu* | *Mint* | *ingu* | *etrunne* | *lementar* )
+			retval="cal -h"
+		;;
+                *edora* | *Cent* | *Hat* | *oror* | *udunt* | *cientifi* )
+			retval="cal --color=never"
+                ;;
+		*Arch* | *anjar* | *ntergo* )
+			retval="cal --color=never"
+		;;
+	esac
+	printf "${retval}"
+}
+
+#Checks our distro cuz Ubuntu and Arch use different vers of cal
+#   with different options to disable highlight of current date
+calcmd="$(CheckDistro)"
+
 #Set our Variables
 WEEK="${BWhite}${cBackground}Su Mo Tu We Th Fr Sa${Color_Off}\n"
 PAST=$(trim "$(cal $(date --date='2 months ago' '+%m %Y') | tail -2 | head -1 )")
 PREV=$(trim "$(cal $(date --date='1 month ago' '+%m %Y') | tail -n +3 | head -n -2 )")
-CURR=$(trim "$(cal $(date '+%m %Y') | tail -n6 | head -n -1)")
+CURR=$(trim "$(${calcmd} $(date '+%m %Y') | tail -n6 | head -n -1)")
 NEXT=$(trim "$(cal $(date --date='next month' '+%m %Y') | tail -n +3 | head -n -1 )")
 FUTR=$(trim "$(cal $(date --date='+2 months' '+%m %Y') | grep -v "[A-Za-z]" | head -n 1)")
 

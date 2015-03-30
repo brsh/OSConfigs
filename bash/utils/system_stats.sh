@@ -118,10 +118,9 @@ function get-disk {
 	#the usual disk space info
 	out-Heading "Disk Information"
 	printf "${SubHead}"
-	echo "FileSystem Type Size Used Avail Used Mounted On" | awk '{printf "  %-20s %6s %6s %5s   %s   %s %s\n", $1,$3,$5,$6,$2,$7,$8 }'
+	echo "FileSystem Type Size Used Avail Used Mounted On" | awk '{printf "  %-20s %6s %6s %5s  %-9s %s %s\n", $1,$3,$5,$6,$2,$7,$8 }'
 	printf "${Text}"
-#	df -hT -x tmpfs -x devtmpfs -l | awk 'NR>1 {printf "  %-20s %6s  %6s %6s   %s\n",  $1,$2,$4,$5,$6 }'
-	df -hT -x tmpfs -x devtmpfs -l | awk 'NR>1 {printf "  %-20s %6s %6s %5s   %s   %s %s\n", $1,$3,$5,$6,$2,$7,$8 }'
+	df -hT -x tmpfs -x devtmpfs -l | awk 'NR>1 {printf "  %-20s %6s %6s %5s  %-9s %s %s\n", $1,$3,$5,$6,$2,$7,$8 }'
 	printf "${Color_Off}"
 	printf "\n"
 }
@@ -155,7 +154,12 @@ function get-hardware {
 	local procval=""
 	procval=$(cat /proc/cpuinfo | awk ' BEGIN {FS=": "} /model name/ { gsub("Intel\\(R\\) ", ""); gsub("\\(TM\\)",""); gsub("CPU ",""); printf $2; exit }')
 	local socCorThr=$(lscpu | awk ' BEGIN {FS=":"} /^Thread/ { gsub(" ", ""); threads=$2} /^Core/ { gsub(" ", ""); cores=$2 } /^Socket/ { gsub(" ", ""); sockets=$2 } END { printf sockets " socket(s); " cores " core(s) per socket; " threads " thread(s) per core" }')
-	local osver=$(cat /etc/*-release | awk ' BEGIN {FS="="} /^DISTRIB_DESC/ { gsub("\"", ""); print $2 }')
+	local osver=$(cat /etc/*-release | awk ' BEGIN {FS="="} /^DISTRIB_DES/ { gsub("\"", ""); print $2 }')
+
+	if [ ${#osver} -lt 1 ]; then
+		osver=$(cat /etc/*-release | awk ' BEGIN {FS="="} /^PRETTY_NAME/ { gsub("\"", ""); print $2 }')
+	fi
+
 	local kernver=$(uname -r)
 	local kerndate=$(uname -v)
 	kerndate="${kerndate:(-28)}"
