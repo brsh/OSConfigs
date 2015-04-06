@@ -42,7 +42,7 @@ calcmd="$(CheckDistro)"
 #Set our Variables
 WEEK="${BWhite}${cBackground}Su Mo Tu We Th Fr Sa${Color_Off}\n"
 PAST=$(trim "$(cal $(date --date='2 months ago' '+%m %Y') | tail -2 | head -1 )")
-PREV=$(trim "$(cal $(date --date='1 month ago' '+%m %Y') | tail -n +3 | head -n -2 )")
+PREV=$(trim "$(cal $(date --date='1 month ago' '+%m %Y') | tail -n +3 | head -n -1 )")
 CURR=$(trim "$(${calcmd} $(date '+%m %Y') | tail -n6 | head -n -1)")
 NEXT=$(trim "$(cal $(date --date='next month' '+%m %Y') | tail -n +3 | head -n -1 )")
 FUTR=$(trim "$(cal $(date --date='+2 months' '+%m %Y') | grep -v "[A-Za-z]" | head -n 1)")
