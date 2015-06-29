@@ -6,7 +6,10 @@ bash.bashrc - default bash configuration (incl. prompt - execute as prompt_small
 
 	Fed/Cent/RH
 		For all users: Place in /etc/profile.d as bash.sh (chmod +x)
-		
+	
+	Mac
+		For all users: Place in /etc/ as bashrc (so /etc/bashrc)
+	
 	Alias for editing: nanobash
 	
 	Global Functions
