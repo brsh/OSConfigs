@@ -10,6 +10,8 @@ bash.bashrc - default bash configuration (incl. prompt - execute as prompt_small
 	Mac
 		For all users: Place in /etc/ as bashrc (so /etc/bashrc)
 	
+	Note: Perms should be at least rrr (or 444)...
+	
 	Alias for editing: nanobash
 	
 	Global Functions
