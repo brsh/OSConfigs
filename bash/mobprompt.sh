@@ -321,12 +321,12 @@ function path_info()
 	fi
 
 	#Now trim the path down if the screen is too narrow
-	local curclean=$(cleanesc ${retval}${totval}${freval})
+	local curclean=$(cleanesc "${retval}${totval}${freval}")
 	local curlength=${#curclean}
 	local maxlength=0
 	let maxlength=(${curlength}+${lengthlimit})
-	local pwdshrunk=$(trim_pwd ${maxlength} ${diskloc})
-	diskloc=${pwdshrunk}
+	local pwdshrunk=$(trim_pwd ${maxlength} "${diskloc}")
+	diskloc="${pwdshrunk}"
 
 	#Check if the pwd is read-only (not read-write)
 	#and color the text (but not the slashes)
@@ -387,7 +387,11 @@ function pwd_counts()
 
 function trim_pwd() {
 	#shrink the pwd to initials if it's too long (leave the actual working dir)
-	local p=${2/#$HOME/\~} b s
+	if [ "${BaseOS}" == "Darwin" ]; then
+		local p=${2/#$HOME/~} b s
+	else
+		local p=${2/#$HOME/\~} b s
+	fi
 	local slashcount="${PWD//[^\/]/}"
 	local retval=""
 	slashcount=${#slashcount}
@@ -401,7 +405,11 @@ function trim_pwd() {
 			p=${p#*/}
 			((s=${#b}+${#p}))
 		done
+	if [ "${BaseOS}" == "Darwin" ]; then
+		retval="${b/\/~/~}${b+/}$p"
+	else
 		retval="${b/\/~/\~}${b+/}$p"
+	fi
 	else
 		retval="${p}"
 	fi
