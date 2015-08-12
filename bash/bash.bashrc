@@ -576,10 +576,12 @@ alias ls='\ls --color=auto --human-readable --group-directories-first --classify
 case "${BaseOS}" in
 	Darwin )
 		alias perm='stat -f "%7Op %Sp%t%Su %SHp%t%Sg %SMp%tother %SLp%t%SN%ST"'
-		alias ls='\ls -FhG'
+		alias ls='\ls -FhGA'
 		alias diff='diff -y'
 		export CLICOLOR=1
 		export LSCOLORS=GxFxCxDxBxegedabagaced
+		alias start='open -a Finder ./'
+		alias flushDNS='dnscacheutil -flushcache'
 	;;
 	Linux )
 		alias perm='stat --printf "%a %A %G %U %n\n"'
