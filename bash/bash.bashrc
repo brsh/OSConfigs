@@ -473,6 +473,11 @@ export LESS_TERMCAP_md=$(printf '\e[1;34m')
 export LESS_TERMCAP_us=$(printf '\e[1;32m')
 export LESS_TERMCAP_so=$(printf '\e[1;44;1m')
 
+# Set a MySQL prompt (if MySQL or MariaDBis installed)
+if [ $(length "$(which mysql 2> /dev/null)") -gt 0 ]; then
+	export MYSQL_PS1="\nTime : \w  \r:\m\P \nHost : \h:\p\nUser : \U \nDB   : \d\n     > "
+fi
+
 #################
 ## Color Stuff ##
 #################
