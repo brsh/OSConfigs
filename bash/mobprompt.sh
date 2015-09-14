@@ -664,7 +664,9 @@ function prompt_big {
 	#The error from the last command - sets the line color to red
 	if [[ ${ErrLevel} && ${ErrLevel-x} ]]; then
 		LineColor=${Red}
-		#leftstuff=${leftstuff}"\${ErrLevel}${LineColor}${FillChar}"
+		# Add an indicator with the error number
+		# Disabled because the # doesn't mean anything to me :)
+		#leftstuff=${leftstuff}"${ErrLevel}${LineColor} "
 	fi
 
 	local FillCharTemp=${FillChar}
