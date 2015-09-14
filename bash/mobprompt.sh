@@ -700,9 +700,6 @@ function prompt_big {
 	holdhour=$(trim ${holdhour})
 	local holdmin=$(date +'%M')
 	local holdmeri=$(date +%p | tr [:upper:] [:lower:])
-#	if [ "${BaseOS}" = "Darwin" ]; then
-#		holdmeri=$(date +'%p')
-#	fi
 	local colortime=$(color_of_time ${holdhour} ${holdmeri})
 	rightstuff=${rightstuff}"${OPENB}${Green}${holdday} ${colortime}${holdhour}${White}:${colortime}${holdmin}${holdmeri}${CLOSEB}"
 
