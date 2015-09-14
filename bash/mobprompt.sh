@@ -655,11 +655,17 @@ PROMPT_COMMAND=prompt_big
 
 function prompt_big {
 	ErrLevel=$(error_result)
+	#Note: we don't use this til later
+	#I just want to change the color
+	IsItSSH=$(GetSSHConnection)
 
 	local leftstuff=""
 	local rightstuff=""
 	local outstuff=""
 	local LineColor=${IWhite}
+	if [[ ${IsItSSH} && ${IsItSSH-x} ]]; then
+		LineColor=${BYellow}
+	fi
 	#Create holder variable to be able to get console size
 	#The error from the last command - sets the line color to red
 	if [[ ${ErrLevel} && ${ErrLevel-x} ]]; then
@@ -738,7 +744,7 @@ function prompt_big {
 	leftstuff=""
 
 	#Line 3 (maybe)
-	IsItSSH=$(GetSSHConnection)
+#	IsItSSH=$(GetSSHConnection)
 	local cleanIsIt=$(cleanesc ${IsItSSH})
 	if [[ ${IsItSSH} && ${IsItSSH-x} ]]; then
 		rightstuff=${rightstuff}${IsItSSH}
@@ -763,7 +769,7 @@ function prompt_big {
 	#The Actual Prompt!
 	PS1="\[\n\n${outstuff}\]"
 	# new line and $ or #
-	PS1=${PS1}"\n\[${IYellow}\]\$\[${Color_Off}$IsSoSSH\] "
+	PS1=${PS1}"\n\[${IYellow}\]\$\[${Color_Off}\] "
 
 }
 
