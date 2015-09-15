@@ -270,6 +270,11 @@ function flag(){
 	printf "%b\n" " ${InvWhite}$(seq -s ' ' $((${COLUMNS} - 1 )) | sed 's/[0-9]//g')${Color_Off}"
 }
 
+function center_line {
+	local retval=""
+	retval=$(printf "$*" | awk -v M="$COLUMNS" '{ printf "%*s%*s", (M+length)/2, $0, (M-length+1)/2+1, "" }')
+	printf "%s" "${retval}"
+}
 
 function boxit() {
 t="$1xxxx";c=${2:-#};
