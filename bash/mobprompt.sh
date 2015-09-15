@@ -593,7 +593,6 @@ function fill_line() {
 		fill="${fill}${FillChar}"
 		let fillsize=${fillsize}-1
 	done
-	#echo -n "${fill}"
 	printf "%s" "${fill}"
 }
 
@@ -747,18 +746,19 @@ function prompt_big {
 #	IsItSSH=$(GetSSHConnection)
 	local cleanIsIt=$(cleanesc ${IsItSSH})
 	if [[ ${IsItSSH} && ${IsItSSH-x} ]]; then
-		rightstuff=${rightstuff}${IsItSSH}
+		leftstuff=${IsItSSH}${leftstuff}
 		filled=$(fill_line ${leftstuff}${rightstuff})
-		outstuff=${outstuff}${leftstuff}${LineColor}${filled}${rightstuff}
+		outstuff="${outstuff}${leftstuff}${LineColor}${filled}${rightstuff}"
 		#Set the terminal title (skip linux terms)
-		if [[ ! $TERM == "linux" ]]; then
-			echo -ne "\033]0;${cleanIsIt} ${USER}@${HOSTNAME}: ${PWD/$HOME/\~} - ${H1}\007"
-		fi
-	else
-		#Set the terminal title (skip linux terms)
-		if [[ ! $TERM == "linux" ]]; then
-			echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD/$HOME/\~}\007"
-		fi
+		#Disabling this as I don't really like/use it...
+#		if [[ ! $TERM == "linux" ]]; then
+#			echo -ne "\033]0;${cleanIsIt} ${USER}@${HOSTNAME}: ${PWD/$HOME/\~} - ${H1}\007"
+#		fi
+#	else
+#		#Set the terminal title (skip linux terms)
+#		if [[ ! $TERM == "linux" ]]; then
+#			echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD/$HOME/\~}\007"
+#		fi
 	fi
 
 	#Reset the fill character
