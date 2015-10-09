@@ -73,7 +73,7 @@ function GetUserColor {
 # 	C:\Windows will be writable with Windows (via cygwin)
 	local retval=${Yellow}	# Default to caution... we just don't know who you are
 	if [[ ${USER} == "root" ]] || [[ ${UID} -eq 0 ]] || [[ -w /cygdrive/c/Windows ]]; then
-		retval="${White}(${Green}$(logname)" # User is root
+		retval="${White}(${Green}$(logname 2>/dev/null)" # User is root
 		if [[ ${SUDO_USER} && ${SUDO_USER-x} ]]; then
 			retval=${retval}"${White} sudo'd as"
 		else
@@ -81,7 +81,7 @@ function GetUserColor {
 		fi
 			retval=${retval}"${White}) ${Red}"
 
-	elif [[ ${USER} != $(logname) ]]; then
+	elif [[ ${USER} != $(logname 2>/dev/null) ]]; then
 		retval=${BRed}          # Alert: User is not login user.
 	else
 		retval=${Green}         # User is normal (yay!).
