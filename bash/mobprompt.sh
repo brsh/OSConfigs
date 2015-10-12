@@ -68,27 +68,40 @@ fi
 
 function GetUserColor {
 # Test user type (root-ish or normal). As root:
-# 	USER will be "root" with Sudo
-# 	UID will be 0 with su
-# 	C:\Windows will be writable with Windows (via cygwin)
-	local retval=${Yellow}	# Default to caution... we just don't know who you are
-	if [[ ${USER} == "root" ]] || [[ ${UID} -eq 0 ]] || [[ -w /cygdrive/c/Windows ]]; then
-		retval="${White}(${Green}$(logname 2>/dev/null)" # User is root
-		if [[ ${SUDO_USER} && ${SUDO_USER-x} ]]; then
-			retval=${retval}"${White} sudo'd as"
-		else
-			retval=${retval}"${White} su'd as"
-		fi
-			retval=${retval}"${White}) ${Red}"
+#       USER will be "root" with Sudo
+#       UID will be 0 with su
+#       C:\Windows will be writable with Windows (via cygwin)
+# NOTE: logname doesn't work if the terminal doesn't allocate a tty
+#       (which just started happening in my Arch installation [Sept/Oct 2015])
+#       Some fudging is necessary to detect when it fails and act accordingly
+#       This means the username and sudo/su info is ... less certain.
+###################
+        local tmpUser=$(logname 2>/dev/null)
+        local retval=${Yellow}  # Default to caution... we just don't know who you are
+        if [[ ${USER} == "root" ]] || [[ ${UID} -eq 0 ]] || [[ -w /cygdrive/c/Windows ]]; then
+                retval="${White}(${Green}" # User is root
+                if [[ ${SUDO_USER} && ${SUDO_USER-x} ]]; then
+                        if [[ ${tmpUser} && ${tmpUser-x} ]]; then
+                                retval="${retval}${tmpUser} "
+                        else 
+                                retval="${retval}${SUDO_USER} "
+                        fi
+                        retval="${retval}${White}sudo'd as"
+                else
+                        if [[ ${tmpUser} && ${tmpUser-x} ]]; then
+                                retval="${retval}${tmpUser} "
+                        fi
+                        retval="${retval}${White}su'd as"
+                fi
+                        retval="${retval}${White}) ${Red}"
 
-	elif [[ ${USER} != $(logname 2>/dev/null) ]]; then
-		retval=${BRed}          # Alert: User is not login user.
-	else
-		retval=${Green}         # User is normal (yay!).
-	fi
-	retval=${retval}${USER}
-	#echo -n ${retval}
-	printf "%s" "${retval}"
+        elif [[ ${USER} != ${tmpUser} ]]; then
+                retval=${BRed}          # Alert: User is not login user.
+        else
+                retval=${Green}         # User is normal (yay!).
+        fi
+        retval="${retval}${USER}"
+        printf "%s" "${retval}"
 }
 
 function GetNetwork {
