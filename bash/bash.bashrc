@@ -621,7 +621,7 @@ if [ $UID -ne 0 ]; then
 	case "${BaseOS}" in
 		Darwin | Linux )
 			alias reboot='sudo reboot'
-			alias shutdown='sudo shutdown -t 2 now -h'
+			alias shutdown='confirm sudo shutdown -t 2 now -h'
 			alias nanobash='sudo nano ${currBashrc} -Y sh'
 		;;
 	esac
