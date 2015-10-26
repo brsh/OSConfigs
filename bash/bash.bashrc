@@ -449,6 +449,24 @@ function ls_exe() {
 	\ls $1 -l 2> /dev/null | grep -v ^[ld] | grep -v ^total | gawk '{print $9}'
 }
 
+function confirm( )
+{
+local response
+#alert the user what they are about to do.
+echo "About to $@....";
+#confirm with the user
+read -r -p "Are you sure? [y/N]" response
+case "$response" in
+    [yY][eE][sS]|[yY]) 
+              #if yes, then execute the passed parameters
+               "$@"
+               ;;
+    *)
+              #Otherwise exit...
+              echo "Cancelled."
+              ;;
+esac
+}
 
 #################
 ## Basic Stuff ##
@@ -632,6 +650,7 @@ if [ $UID -ne 0 ]; then
 			alias nanobash='sudo nano /etc/profile.d/bash.sh --syntax=sh -w'
 		;;
 		*Arch* | *anjar* | *ntergo* )
+			alias shutdown='confirm sudo shutdown now -h'
 			alias update='sudo pacman -Syu'
 			alias install='sudo pacman -S'
 			alias yogurt=yaourt
