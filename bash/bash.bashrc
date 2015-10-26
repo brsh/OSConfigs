@@ -637,7 +637,7 @@ if [ $UID -ne 0 ]; then
 #			unalias reboot
 #			unalias shutdown
 		;;
-		*buntu* | *Mint* | *ingu* | *etrunne* | *lementar* )
+		*buntu* | *Mint* | *ingu* | *etrunne* | *lementar* | *Debia*)
 			alias update='sudo apt-get update && sudo apt-get upgrade'
 			alias dist-upgrade='sudo apt-get update && sudo apt-get dist-upgrade'
 			alias install='sudo apt-get install'
