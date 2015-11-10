@@ -644,7 +644,12 @@ if [ $UID -ne 0 ]; then
 			alias autoremove='sudo apt-get autoremove'
 #			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
 		;;
-		*edora* | *Cent* | *Hat* | *oror* | *udunt* | *cientifi* )
+		*edora* )
+			alias update='sudo dnf update'
+			alias install='sudo dnf install'
+			alias nanobash='sudo nano /etc/profile.d/bash.sh --syntax=sh -w'
+		;;
+		*Cent* | *Hat* | *oror* | *udunt* | *cientifi* )
 			alias update='sudo yum upgrade'
        			alias install='sudo yum install'
 			alias nanobash='sudo nano /etc/profile.d/bash.sh --syntax=sh -w'
