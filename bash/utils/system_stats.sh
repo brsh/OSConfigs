@@ -1,7 +1,7 @@
 #!/bin/bash
-ScriptLoc="$(dirname $0)/lib"
-source ${ScriptLoc}/lib_colors.sh
-source ${ScriptLoc}/lib_time.sh
+ScriptLoc="$(dirname "${0}")"
+source "${ScriptLoc}/lib/lib_colors.sh"
+source "${ScriptLoc}/lib/lib_time.sh"
 
 #function out-Heading {
 #	#Makes a pretty (and consistent) heading
@@ -47,7 +47,7 @@ for INTs in $(ip link | awk ' BEGIN { FS=":" } /^[0-9]/ {printf "%s ", $2}'); do
 		ifconfig=""
 		ipconfig=""
 
-		ifconfig="$(ip addr show dev ${INTs})"
+		ifconfig="$(ip addr show dev "${INTs}")"
 		ipaddr=$(echo "${ifconfig}" | awk '/inet / {print $2 }')
 
 #		masktemp=$(echo "${ifconfig}" | awk '/inet[[:space:]]/ {print $4 }')
@@ -74,7 +74,7 @@ for INTs in $(ip link | awk ' BEGIN { FS=":" } /^[0-9]/ {printf "%s ", $2}'); do
 #			fi
 #		fi
 
-		ipconfig=$(dhcpcd -U ${INTs} 2> /dev/null )
+		ipconfig=$(dhcpcd -U "${INTs}" 2> /dev/null )
 		DHCPServer=$(echo "${ipconfig}" | awk ' BEGIN { FS="[=:]" }; /server_identifier/ {$1=""; gsub(" ","",$0); print $0 }')
 		if ! [[ "${DHCPServer}" && "${DHCPServer-x}" ]]; then
 			DHCPServer="Static IP, no DHCPServer, or other error"
@@ -88,7 +88,7 @@ for INTs in $(ip link | awk ' BEGIN { FS=":" } /^[0-9]/ {printf "%s ", $2}'); do
 # 			DHCPLeaseExpires="(${Item}Lease Expires:${Text} ${DHCPLeaseExpires})${ColorOff}"
 		fi
 
-		DNSServer="$(cat /etc/resolv.conf | awk ' /^nameserver/ { printf "%s  ", $2 }')"
+		DNSServer="$(awk ' /^nameserver/ { printf "%s  ", $2 }' /etc/resolv.conf)"
 
 		if [[ "${ipaddr}" && "${ipaddr-x}" ]]; then
 			AllInfo="${AllInfo} ${SubHead}Interface ${INTs}${Color_Off}\n"
@@ -152,23 +152,21 @@ function get-hardware {
 	#CLI 1
 	#pulls some info on the hardware and software
 	local procval=""
-	procval=$(cat /proc/cpuinfo | awk ' BEGIN {FS=": "} /model name/ { gsub("Intel\\(R\\) ", ""); gsub("\\(TM\\)",""); gsub("CPU ",""); printf $2; exit }')
+	procval=$(awk ' BEGIN {FS=": "} /model name/ { gsub("Intel\\(R\\) ", ""); gsub("\\(TM\\)",""); gsub("CPU ",""); printf $2; exit }' /proc/cpuinfo )
 	local socCorThr=$(lscpu | awk ' BEGIN {FS=":"} /^Thread/ { gsub(" ", ""); threads=$2} /^Core/ { gsub(" ", ""); cores=$2 } /^Socket/ { gsub(" ", ""); sockets=$2 } END { printf sockets " socket(s); " cores " core(s) per socket; " threads " thread(s) per core" }')
-	local osver=$(cat /etc/*-release | awk ' BEGIN {FS="="} /^DISTRIB_DES/ { gsub("\"", ""); print $2 }')
+	local osver=$(awk ' BEGIN {FS="="} /^DISTRIB_DES/ { gsub("\"", ""); print $2 }' /etc/*-release)
 
 	if [ ${#osver} -lt 1 ]; then
-		osver=$(cat /etc/*-release | awk ' BEGIN {FS="="} /^PRETTY_NAME/ { gsub("\"", ""); print $2 }')
+		osver=$(awk ' BEGIN {FS="="} /^PRETTY_NAME/ { gsub("\"", ""); print $2 }' /etc/*-release)
 	fi
 
 	local kernver=$(uname -r)
 	local kerndate=$(uname -v)
 	kerndate="${kerndate:(-28)}"
 
-	local CurrLoad=$(cat /proc/loadavg | awk {'print $3 * 100 " %"}')
-	local memfree=$(free -m | head -n 2 | tail -n 1 | awk {'print $4'})
-	local memtotal=$(free -m | head -n 2 | tail -n 1 | awk {'print $2'})
-
-
+	local CurrLoad=$(awk '{print $3 * 100 " %"}' /proc/loadavg)
+	local memfree=$(free -m | head -n 2 | tail -n 1 | awk '{print $4}')
+	local memtotal=$(free -m | head -n 2 | tail -n 1 | awk '{print $2}')
 
 	local nomen=$(hostname -f)
 
@@ -280,10 +278,8 @@ function HowLongUntil {
 	echo " ~Days~Next Date~Years" | awk 'BEGIN{FS="~"}{ printf "%-23s %6s        %-10s        %5s", $1, $2, $3, $4; }'
 	printf "\n"
 
-####	if [ -r "${HOME}/.calendar/calendar" ]; then
-
 	#here's where we parse the file
-	local Where="${HOME}/data"
+	local Where="${ScriptLoc}/data"
 	if [ -r "${Where}/dates.txt" ]; then
 		while IFS=, read -r f1 f2 f3; do
 			OutBDay "${f2}" "${f1}" "${f3}"
