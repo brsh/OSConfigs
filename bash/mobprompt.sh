@@ -160,7 +160,7 @@ function cpu_load()
 	local comparo
 	if [ "${BaseOS}" == "Darwin" ]; then
 		#SYSLOAD=$(top -l 1 -n1 | fgrep "CPU" | head -1 | cut -d , -f3)
-		SYSLOAD=$(ps aux | awk {'sum+=$3;print sum'} | tail -n 1)
+		SYSLOAD=$(ps aux | awk '{sum+=$3;print sum}' | tail -n 1)
 	else
 	#Arch's top defaults to Cpu1 Cpu2 etc; Fed still does Cpu(s)
 	SYSLOAD=$(top -b -n 2 -d 0.1 | tr '[' ' ' | awk '/^%Cpu[0-9]/ {sum+=$4; line+=1; }; /^%Cpu\(s\)/ {sum+=(100-$8); line+=1}; END { printf "%.1f", sum/line }')
@@ -211,8 +211,8 @@ function memory_load()
 	local memtotal
 	local freeExists=$(which free 2> /dev/null)
 	if [[ ${freeExists} && ${freeExists-x} ]]; then
-		memfree=$(free -m | head -n 2 | tail -n 1 | awk {'print $4'})
-		memtotal=$(free -m | head -n 2 | tail -n 1 | awk {'print $2'})
+		memfree=$(free -m | head -n 2 | tail -n 1 | awk '{print $4}')
+		memtotal=$(free -m | head -n 2 | tail -n 1 | awk '{print $2}')
 	elif [ "${BaseOS}" == "Darwin" ]; then
 		memfree="$(( $(vm_stat | awk '/free/ {gsub(/\./, "", $3); print $3}') * 4096 / 1048576))"
 		memtotal="$(( $(sysctl -n hw.memsize) / 1048576))"
