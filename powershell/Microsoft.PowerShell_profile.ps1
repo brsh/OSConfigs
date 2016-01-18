@@ -1,13 +1,17 @@
-#goes in C:\Windows\System32\WindowsPowerShell\v1.0 (for all users on current machine)
+ï»¿#goes in C:\Windows\System32\WindowsPowerShell\v1.0 (for all users on current machine)
 #C:\WINDOWS\System32\WindowsPowerShell\v1.0\Microsoft.PowerShell_profile.ps1
 $HistoryText = @'
  Maintenance Log
  Date       By   Updates (important: insert newest updates at top)
- ---------- ---- ---------------------------------------------------------------------
+ ---------- ---- ------------------------------------------------------------------------------
+ 2016/01/15 BDS Updated, more cleaning, made snew dynamic, redid Prog aliases, more...
  2014/09/16 BDS Updated, cleaned up (adjusted ll, lla, added import of Directories module)
  2012/10/26 BDS Created (ok, assembled)
- ---------- ---- ---------------------------------------------------------------------
+ ---------- ---- ------------------------------------------------------------------------------
 '@
+
+###################### Declarations #####################
+
 $Global:IsAdmin=$False
     if( ([System.Environment]::OSVersion.Version.Major -gt 5) -and ( # Vista and ...
           new-object Security.Principal.WindowsPrincipal (
@@ -19,9 +23,6 @@ $Global:IsAdmin=$False
       $IsAdmin = $False
     }
 
-Try { import-Module Directories -ErrorAction Continue }
-Catch {Write-Host "`nDirectories Module not found`n" -ForegroundColor Red}
-
 if(!$global:WindowTitlePrefix) {
     # if you're running "elevated" we want to show that ...
     If ($IsAdmin) {
@@ -31,24 +32,26 @@ if(!$global:WindowTitlePrefix) {
     }
  }
 
-$voice = New-Object -ComObject SAPI.SPVoice
-$voice.Rate = -3
- 
-function invoke-speech
-{
-    param([Parameter(ValueFromPipeline=$true)][string] $say )
+Set-Variable -name HomeIsLocal -value $True -Scope Global
 
-    process
-    {
-        $voice.Speak($say) | out-null;    
+
+##################### Modules ##########################
+
+Try { 
+    import-Module Directories -ErrorAction Continue 
+    New-Alias -name ll -value Get-DirInfo -Description "Network info (threaded for quick response)"
     }
-}
+Catch {
+    Write-Host "`nDirectories Module not found`n" -ForegroundColor Red
+    }
 
-new-alias -name out-voice -value invoke-speech;
 
-function touch($file) { "" | Out-File $file -Encoding ASCII }
 
-function Translate-FromSID
+################### Functions #########################
+
+      ############# Converts ###############
+
+function ConvertFrom-SID
  {
   param([string]$SID)
   $objSID = New-Object System.Security.Principal.SecurityIdentifier($SID)
@@ -56,7 +59,7 @@ function Translate-FromSID
   Return $objUser.Value
  }
 
- function Translate-ToSID
+ function ConvertTo-SID
  {
   param([string]$ID)
   $objID = New-Object System.Security.Principal.NTAccount($ID)
@@ -64,25 +67,116 @@ function Translate-FromSID
   Return $objSID.Value
  }
 
-new-alias -name FromSID -value Translate-FromSID;
-new-alias -name ToSID -value Translate-ToSID;
+new-alias -name FromSID -value ConvertFrom-SID -Description "Get UserName from SID";
+new-alias -name ToSID -value ConvertTo-SID -Description "Get SID from UserName";
 
+Function ConvertTo-URLEncode([string]$InText) {
+    [System.Reflection.Assembly]::LoadWithPartialName("System.web") | out-null
+    [System.Web.HttpUtility]::UrlEncode($InText)
+}
 
-$myScriptsDir = "$($env:SystemDrive)\scripts"
-$myProfileScript = $MyInvocation.MyCommand.Path
-switch ($myProfileScript) {
-    $profile.AllUsersAllHosts
-	    {$myProfileScript = "`$profile.AllUsersAllHosts"}
-	$profile.AllUsersCurrentHost
-	    {$myProfileScript = "`$profile.AllUsersCurrentHost"}
-	$profile.CurrentUserAllHosts
-	    {$myProfileScript = "`$profile.CurrentUserAllHosts"}
-	$profile.CurrentUserCurrentHost
-	    {$myProfileScript = "`$profile.CurrentUserCurrentHost"}
+Function ConvertFrom-URLEncode([string]$InText) {
+    [System.Reflection.Assembly]::LoadWithPartialName("System.web") | out-null
+    [System.Web.HttpUtility]::UrlDecode($InText)
+}
+
+New-Alias -name "URLEncode" -Value ConvertTo-URLEncode -Description "URL encode a string"
+New-Alias -name "URLDecode" -Value ConvertFrom-URLEncode -Description "URL decode a string"
+
+Function ConvertTo-Fahrenheit([decimal]$celsius) {
+    $((1.8 * $celsius) + 32 )
+} 
+
+Function ConvertTo-Celsius($fahrenheit) {
+    $( (($fahrenheit - 32)/9)*5 )
+}
+
+New-Alias -name "ToF" -Value ConvertTo-Fahrenheit -Description "Convert degrees C to F"
+New-Alias -name "ToC" -Value ConvertTo-Celsius -Description "Convert degrees F to C"
+
+function Out-Speech { 
+    <# 
+    .SYNOPSIS 
+        This is a Text to Speech Function made in powershell. 
+ 
+    .DESCRIPTION 
+        This is a Text to Speech Function made in powershell. 
+ 
+    .PARAMETER  Message 
+        Type in the message you want here. 
+ 
+    .PARAMETER  Gender 
+        The description of a the ParameterB parameter. 
+ 
+    .EXAMPLE 
+        PS C:\> Out-Speech -Message "Testing the function" -Gender 'Female' 
+         
+    .EXAMPLE 
+        PS C:\> "Testing the function 1","Testing the function 2 ","Testing the function 3","Testing the function 4 ","Testing the function 5 ","Testing the function 6" | Foreach-Object { Out-Speech -Message $_ } 
+     
+    .EXAMPLE 
+        PS C:\> "Testing the Pipeline" | Out-Speech 
+ 
+    .INPUTS 
+        System.String 
+ 
+    #> 
+    [CmdletBinding()] 
+    param( 
+        [Parameter(Position=0, Mandatory=$true,ValueFromPipeline=$true)] 
+        [System.String] 
+        $Message, 
+        [Parameter(Position=1)] 
+        [System.String] 
+        [validateset('Male','Female')] 
+        $Gender = 'Female' 
+    ) 
+    begin { 
+        try { 
+             Add-Type -Assembly System.Speech -ErrorAction Stop 
+        } 
+        catch { 
+            Write-Error -Message "Error loading the requered assemblies" 
+        } 
+    } 
+    process { 
+            $voice = New-Object -TypeName 'System.Speech.Synthesis.SpeechSynthesizer' -ErrorAction Stop 
+            
+            Write-Verbose "Selecting a $Gender voice" 
+            $voice.SelectVoiceByHints($Gender) 
+             
+            Write-Verbose -Message "Start Speaking" 
+            $voice.Speak($message) | Out-Null 
+    } 
+    end { 
+    } 
+}
+
+new-alias -name say -value Out-Speech -Description "Have the computer _speak_ the output";
+
+function Format-Color([hashtable] $Colors = @{}, [switch] $SimpleMatch) {
+    #Just a way to recolor some things that don't have color options
+    #can handle regex or simpler matching (like just * to recolor everything)
+	$lines = ($input | Out-String) -replace "`r", "" -split "`n"
+	foreach($line in $lines) {
+		$color = ''
+		foreach($pattern in $Colors.Keys){
+			if(!$SimpleMatch -and $line -match $pattern) { $color = $Colors[$pattern] }
+			elseif ($SimpleMatch -and $line -like $pattern) { $color = $Colors[$pattern] }
+		}
+		if($color) {
+			Write-Host -ForegroundColor $color $line
+		} else {
+			Write-Host $line
+		}
 	}
+}
 
+Set-Alias -Name clr -value Format-Color -Description "Re-color output text"
 
-function list-profiles {
+      #############   Info   ###############
+
+function Show-Profiles {
     #use to quickly check which (if any) profile slots are inuse
     $profile|gm *Host*| `
     % {$_.name}| `
@@ -92,9 +186,9 @@ function list-profiles {
     $p.exists=(test-path $profile.$_); 
     new-object psobject -property $p} | ft -auto
     }
-New-Item -path alias:LPro -value list-profiles | out-null
+New-Alias -name Profs -value Show-Profiles -Description "List PowerShell profile files/paths";
 
-function split-envpath {
+function Show-SplitEnvPath {
   #display system path components in a human-readable format
   $p = @(get-content env:path|% {$_.split(";")})
   "Path"
@@ -107,7 +201,196 @@ function split-envpath {
     }
   ""
   }
-new-item -path alias:epath -value split-envpath |out-null
+new-alias -name ePath -value Show-SplitEnvPath -Description "Display the path environment var";
+
+      #############   Find   ###############
+
+Function Find-Files{
+#Find-Files -Locations "\\Server1\c$\Temp", "\\Server1\c$\Test1" -SearchFor "Install.cmd"
+    Param([String[]]$Locations, $SearchFor)
+
+    Begin { }
+
+    Process {
+        $Files = @()
+        ForEach($Location in $Locations) {
+            if (test-path $Location) {
+                $Files += Get-ChildItem -Path $Location -Filter $SearchFor -Recurse -ErrorAction SilentlyContinue
+           }
+        }
+    }
+
+    End { return $Files }
+}
+
+New-Alias -name find -Value Find-Files -Description "Search multiple folders for files";
+
+function Find-InTextFile { 
+    <# 
+    .SYNOPSIS 
+        Performs a find (or replace) on a string in a text file or files. 
+    .EXAMPLE 
+        PS> Find-InTextFile -FilePath 'C:\MyFile.txt' -Find 'water' -Replace 'wine' 
+     
+        Replaces all instances of the string 'water' into the string 'wine' in 
+        'C:\MyFile.txt'. 
+    .EXAMPLE 
+        PS> Find-InTextFile -FilePath 'C:\MyFile.txt' -Find 'water' 
+     
+        Finds all instances of the string 'water' in the file 'C:\MyFile.txt'. 
+    .PARAMETER FilePath 
+        The file path of the text file you'd like to perform a find/replace on. 
+    .PARAMETER Find 
+        The string you'd like to replace. 
+    .PARAMETER Replace 
+        The string you'd like to replace your 'Find' string with. 
+    .PARAMETER NewFilePath 
+        If a new file with the replaced the string needs to be created instead of replacing 
+        the contents of the existing file use this param to create a new file. 
+    .PARAMETER Force 
+        If the NewFilePath param is used using this param will overwrite any file that 
+        exists in NewFilePath. 
+    #> 
+    [CmdletBinding(DefaultParameterSetName = 'NewFile')] 
+    [OutputType()] 
+    param ( 
+        [Parameter(Mandatory = $true,Position=1)] 
+        [ValidateScript({Test-Path -Path $_ -PathType 'Leaf'})] 
+        [string[]]$FilePath, 
+        [Parameter(Mandatory = $true,Position=2)] 
+        [string]$Find, 
+        [Parameter()] 
+        [string]$Replace, 
+        [Parameter(ParameterSetName = 'NewFile')] 
+        [ValidateScript({ Test-Path -Path ($_ | Split-Path -Parent) -PathType 'Container' })] 
+        [string]$NewFilePath, 
+        [Parameter(ParameterSetName = 'NewFile')] 
+        [switch]$Force 
+    ) 
+    begin { 
+        $Find = [regex]::Escape($Find) 
+    } 
+    process { 
+        try { 
+            foreach ($File in $FilePath) { 
+                if ($Replace) { 
+                    if ($NewFilePath) { 
+                        if ((Test-Path -Path $NewFilePath -PathType 'Leaf') -and $Force.IsPresent) { 
+                            Remove-Item -Path $NewFilePath -Force 
+                            (Get-Content $File) -replace $Find, $Replace | Add-Content -Path $NewFilePath -Force 
+                        } elseif ((Test-Path -Path $NewFilePath -PathType 'Leaf') -and !$Force.IsPresent) { 
+                            Write-Warning "The file at '$NewFilePath' already exists and the -Force param was not used" 
+                        } else { 
+                            (Get-Content $File) -replace $Find, $Replace | Add-Content -Path $NewFilePath -Force 
+                        } 
+                    } else { 
+                        (Get-Content $File) -replace $Find, $Replace | Add-Content -Path "$File.tmp" -Force 
+                        Remove-Item -Path $File 
+                        Rename-Item -Path "$File.tmp" -NewName $File 
+                    } 
+                } else { 
+                    Select-String -Path $File -Pattern $Find 
+                } 
+            } 
+        } catch { 
+            Write-Error $_.Exception.Message 
+        } 
+    } 
+}
+
+New-Alias -name grep -value Find-InTextFile -Description "Grep with GSAR abilities"
+
+function Find-Commands { get-command $args"*" }
+New-Alias -name which -value Find-Commands -Description "Lists/finds commands with specified text";
+
+      ############# Create   ###############
+
+function New-File($file) { "" | Out-File $file -Encoding ASCII }
+
+New-Alias -name touch -value New-File -Description "Create an empty file";
+
+function New-TimestampedFile() {
+Param
+  (
+  [string]$Folder="",
+  [string]$Prefix="temp",
+  [string]$Type="log",
+    [switch]$Help
+  )
+    $HelpInfo = @'
+
+    Function : NewTimestampedFile
+    By       : xb90 at http://poshtips.com
+    Date     : 02/23/2011 
+    Purpose  : Creates a unique timestamp-signature text file.
+    Usage    : NewTempFile [-Help][-folder <text>][-prefix <text>][-type <text>]
+               where      
+                      -Help       displays this help
+                      -Folder     specify a subfolder or complete path
+                                  where the new file will be created
+                      -Prefix     a text string that will be used as the 
+                                  the new file prefix (default=TEMP)
+                      -Type       the filetype to use (default=LOG)
+    Details  : This function will create a new file and any folder (if specified)
+               and return the name of the file.
+               If no parameters are passed, a default file will be created in the
+               current directory. Example:
+                                           temp_20110223-164621-0882.log
+'@    
+    if ($help){
+        write-host $HelpInfo
+        return
+        }
+  
+  #create the folder (if needed) if it does not already exist
+  if ($folder -ne "") {
+    if (!(test-path $folder)) {
+      write-host "creating new folder `"$folder`"..." -back black -fore yellow
+      new-item $folder -type directory | out-null
+      }
+    if (!($folder.endswith("\"))) {
+      $folder += "\"
+      }
+    }
+
+  #generate a unique file name (with path included)
+  $x = get-date
+  $TempFile=[string]::format("{0}_{1}{2:d2}{3:d2}-{4:d2}{5:d2}{6:d2}-{7:d4}.{8}",
+    $Prefix,
+    $x.year,$x.month,$x.day,$x.hour,$x.minute,$x.second,$x.millisecond,
+    $Type)
+  $TempFilePath=[string]::format("{0}{1}",$folder,$TempFile)
+    
+  #create the new file
+  if (!(test-path $TempFilePath)) {
+    new-item -path $TempFilePath -type file | out-null
+    }
+  else {
+    throw "File `"$TempFilePath`" Already Exists! (Really weird, since this is a timestamp!)"
+    }
+
+  return $TempFilePath
+}
+New-Alias -Name ntf -value New-TimestampedFile -Description "Create a new file w/timestamped filename"
+
+      #############    Get   ###############
+
+function get-uptime {
+        $WMIHash = @{
+            ComputerName = "."
+            ErrorAction = 'Stop'
+            Query= "SELECT LastBootUpTime FROM Win32_OperatingSystem"
+            NameSpace='Root\CimV2'
+        }
+        $wmi = Get-WmiObject @WMIHash
+        $retval = (Get-Date) - $($wmi.ConvertToDateTime($wmi.LastBootUpTime))
+        return $retval
+}
+
+function get-battery {
+    $charge = get-wmiobject Win32_Battery
+    return $charge    
+}
 
 function Get-LocalDisk{
   Param ([string] $hostname="localhost")
@@ -124,14 +407,26 @@ function Get-LocalDisk{
       @{Label="Size(GB)"; Alignment="right"; Expression={"{0:N2}" -f ($_.size/1GB)}} `
     | out-default
     }
-New-Item -path alias:gld -value Get-LocalDisk |out-null
+New-Alias -name gld -value Get-LocalDisk -Description "Display local disk info";
 
-New-Alias which get-command
+function Get-IP {ipconfig | where-object {$_ â€“like â€œ*IPv4 Address*â€}}
+New-Alias -name gip -value Get-IP -Description "Display IPv4 Address";
 
-function Get-IP {ipconfig | where-object {$_ –like “*IPv4 Address*”}}
-New-Alias gip Get-IP
+Function Get-AddressToName($addr) {
+    [system.net.dns]::GetHostByAddress($addr)
+}
 
-function ping-port {
+Function Get-NameToAddress($addr) {
+    [system.net.dns]::GetHostByName($addr)
+}
+
+New-Alias -name "n2a" -value Get-NameToAddress -Description "Get IP Address from DNS by Host Name"
+New-Alias -name "a2n" -value Get-AddressToName -Description "Get Host Name from DNS by IP Address"
+
+
+      ######################################
+
+function Test-Port {
 Param([string]$srv,$port=80,$timeout=3000,[switch]$verbose)
  
 # Does a TCP connection on specified port (80 by default)
@@ -162,6 +457,7 @@ else
 # Return $true if connection Establish else $False
 if($failed){return "Failed"}else{return "Alive"}
 }
+New-Alias -name pp -Value Test-Port -Description "Test a TCP connection on the specified port";
 
 function Write-Trace
 {
@@ -228,100 +524,10 @@ function Write-Trace
     Out-File -InputObject $Output -Append -NoClobber -Encoding Default -FilePath $FilePath
   }
 }
+New-Alias -name wt -value Write-Trace -Description "Write output in trace32 format";
 
 
-Function Show-NewCommands {
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Write-host ""
-Write-Host "** New Declarations **" -fore yellow
-Write-Host "Name                 Alias      Description".padright(80) -back yellow -fore black
-Write-Host "Show-NewCommands     snew       Show this list " -fore yellow
-Write-Host "List-Profiles        lpro       List profile files/paths " -fore yellow
-Write-Host "Split-Envpath        epath      Display the path env var " -fore yellow
-Write-Host "Get-LocalDisk        gld        Display local disk info " -fore yellow
-Write-Host "CountDown            CntDn      Pause a script and display countdown " -fore yellow
-Write-Host "Touch                           Create new, empty file " -fore yellow
-Write-Host "NewTimestampedFile   ntf        Create new, empty file with timestamped name " -fore yellow
-write-host "Export-PSCredential  ecred      Export credentials to file " -fore yellow
-write-host "Import-PSCredential  icred      Import credentials from file " -fore yellow
-write-host "Get-ChildItem        ll         Linux-style dir list with color " -fore yellow
-write-host "Get-Command          which      Just a rename... " -fore yellow
-write-host "Get-IP               gip        Display IPv4" -fore Yellow
-write-host "Translate-FromSID    FromSID    Get UserName from SID " -fore yellow
-write-host "Translate-FromSID    ToSID      Get SID from UserName" -fore Yellow
-write-host "Ping-Port                       Test if a port is open (default=80)" -fore Yellow
-write-host "Write-Trace                     Write to a log file in Trace32-format" -fore Yellow
-write-host "Get-DirInfo          ll         Linux-style dir list with color" -fore yellow
-write-host "Get-WifiNetwork                 List nearby Wifi networks" -fore yellow
 
-Write-Host ""
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-}
-
-New-Alias snew Show-NewCommands
-New-Alias ll Get-DirInfo
-
-#ShowHeader
-if (!(test-path $myScriptsDir)){
-    write-host "creating default scripts directory ($myScriptsDir)" -back black -fore green
-    new-item -path $myScriptsDir -type directory
-	}
-Set-Location $myScriptsDir | out-null
-
-Show-NewCommands
-
-$PgmAliasList = (
-#	"primal |c:\Program Files\SAPIEN Technologies, Inc\PrimalScript 2012\PrimalScript.exe",
-    "excel  |c:\Program Files\Microsoft Office\Office14\EXCEL.EXE; `
-	         c:\program files (x86)\Microsoft Office\Office14\EXCEL.EXE"
-#	"oo3    |c:\Program Files (x86)\OpenOffice.org 3\program\soffice.exe; `
-#	         c:\Program Files\OpenOffice.org 3\program\soffice.exe"
-	)
-write-host "Setting up Program Aliases...`n" -foreground green
-write-host "  Alias       Path"
-write-host "  ==========  ======================================="
-
-foreach ($alias in $PgmAliasList) {
-	$name = $alias.split("|")[0].trim()
-	write-host "  $($name.padright(12))" -nonewline
-	if (!(test-path Alias:\$name)){
-		$pgmPaths = $alias.split("|")[1].split(";")
-		$pathOk = $false
-		foreach ($pgmPath in $pgmPaths) {
-			if (Test-Path $pgmPath.trim()){
-				Set-Alias $name $pgmPath.trim() -scope Global
-				Write-Host $pgmPath.trim() # -background black -foreground green
-				$pathOk = $true
-				break
-				}
-			}
-			if (!$pathOk) {
-				Write-Host "No valid path found" -foreground red
-				}
-		}
-	else {
-		$x = Get-Alias $name 
-		Write-Host "Already defined ($($x.definition))" -foreground yellow
-		}
-	}
-write-host ""
-
-function get-uptime {
-        $WMIHash = @{
-            ComputerName = "."
-            ErrorAction = 'Stop'
-            Query= "SELECT LastBootUpTime FROM Win32_OperatingSystem"
-            NameSpace='Root\CimV2'
-        }
-        $wmi = Get-WmiObject @WMIHash
-        $retval = (Get-Date) - $($wmi.ConvertToDateTime($wmi.LastBootUpTime))
-        return $retval
-}
-
-function get-battery {
-    $charge = get-wmiobject Win32_Battery
-    return $charge    
-}
 
 function prompt {
     # Make sure Windows and .Net know where we are (they can only handle the FileSystem)
@@ -329,45 +535,76 @@ function prompt {
     # Also, put the path in the title ... (don't restrict this to the FileSystem
     $Host.UI.RawUI.WindowTitle = "{0} - {1} ({2})" -f $global:WindowTitlePrefix,$pwd.Path,$pwd.Provider.Name
 
+    $line = $('â”€' * (($Host.UI.RawUI.WindowSize.Width)-1))
+
     $uppity = (get-uptime)
 
     $battstat = ""
     $batt = (get-battery)
     switch ($batt.BatteryStatus) {
         1 { $battstat = "-"; break }
-        2 { $battstat = "AC"; break }
+        2 { $battstat = "+"; break } #Actually AC
         3 { $battstat = "="; break }
         4 { $battstat = "_"; break }
         5 { $battstat = "!"; break }
         6 { $battstat = "+"; break }
     }
 
-    
-    #Battery
-    If (($battstat -ne "") -and ($battstat -ne "AC")) {
-        Write-Host "`n[" -Fore "White" -NoNewLine
-        Write-Host "$battstat" -Fore "Green" -NoNewLine
-        Write-Host "$($batt.EstimatedChargeRemaining)" -Fore "Green" -NoNewLine
-        Write-Host "] " -Fore "White" -NoNewLine
-    }
+    Write-Host " "
+    write-host $line
 
     #Uptime
-    Write-Host "`n[up " -Fore "White" -NoNewLine
+    #Piece together the length of Uptime so we can right-justify the time
+    #Futz it a little, using length of the non-DateTime chars + 1
+    $tLength = "[up d h:00m:00s]".Length + "[ddd hh:mm?m]".Length + 1
+    $tLength += (($uppity.days).ToString.Length) + $(($uppity).ToString('hh').Length)
+    Write-Host "[up " -Fore "White" -NoNewLine
     Write-Host "$($uppity.days)" -Fore "Green" -NoNewLine
     Write-Host "d " -Fore "White" -NoNewLine
-    Write-Host "$($uppity.hours)" -Fore "Green" -NoNewLine
+    Write-Host "$(($uppity).ToString('hh'))" -Fore "Green" -NoNewLine
     Write-Host "h:" -Fore "White" -NoNewLine
-    Write-Host "$($uppity.minutes)" -Fore "Green" -NoNewLine
+    Write-Host "$(($uppity).ToString('mm'))" -Fore "Green" -NoNewLine
     Write-Host "m:" -Fore "White" -NoNewLine
-    Write-Host "$($uppity.seconds)" -Fore "Green" -NoNewLine
-    Write-Host "s] " -Fore "White" -NoNewLine
+    Write-Host "$(($uppity).ToString('ss'))" -Fore "Green" -NoNewLine
+    Write-Host "s]" -Fore "White" -NoNewLine
+
+#    #Battery
+#Unfortunately, this breaks when the window is resized
+#I'll revisit someday....
+#    If (($batt.EstimatedChargeRemaining -ne 100)) {
+#        #Battery Length
+#        $tLength = ((($tLength) * 2) + ("[battery ##% ?]".Length) + 3)
+#        Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
+#        Write-Host "[battery " -Fore "White" -NoNewLine
+#        if (($batt.EstimatedChargeRemaining) -gt 30) {
+#            Write-Host "$($batt.EstimatedChargeRemaining)" -Fore "Green" -NoNewLine
+#        }
+#        else {
+#            Write-Host "$($batt.EstimatedChargeRemaining)" -Fore "Yellow" -NoNewLine
+#        }
+#        Write-Host "% " -Fore "White" -NoNewLine
+#        Write-Host "$battstat" -Fore "Yellow" -NoNewLine
+#        Write-Host "]" -Fore "White" -NoNewline
+#    }
+
+    #Now let's use that futzed length to add some spaces before displaying the time
+    Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
 
     #Day and Time
-    Write-Host "`n[" -Fore "White" -NoNewLine
+    Write-Host "[" -Fore "White" -NoNewLine
     Write-Host "$((get-date).ToString('ddd')) " -Fore "Green" -NoNewLine
-    Write-Host "$((get-date).ToShortTimeString().ToLower())" -Fore "Yellow" -NoNewLine
-    Write-Host "] " -Fore "White" -NoNewLine
-    
+    Write-Host "$((get-date).ToString('hh:mmtt').ToLower())" -Fore "Yellow" -NoNewLine
+    Write-Host "]" -Fore "White"
+
+    #Current Directory
+    $tLength = ("[][@]".Length + ($pwd.Path.Length) + $env:username.Length + $env:computername.Length) + 1
+    Write-Host "[" -Fore "White" -NoNewLine
+    Write-Host "$pwd" -ForegroundColor "Cyan" -NoNewLine
+    Write-Host "]" -Fore "White" -NoNewLine
+
+    #Now let's use that futzed length to add some spaces before displaying the time
+    Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
+
     #Username @ machine
     Write-Host "[" -Fore "White" -NoNewLine
     Write-Host "$env:username" -Fore "Green" -NoNewLine
@@ -375,145 +612,41 @@ function prompt {
     Write-Host "$(($env:computername).ToLower())" -Fore "Magenta" -NoNewLine
 
     if($IsAdmin) { Write-Host " as ADMIN" -Fore "Red" -NoNewLine }
-    Write-Host "] " -Fore "White" -NoNewLine
+    Write-Host "]" -Fore "White" 
 
-    #Current Directory
-    Write-Host "[" -Fore "White" -NoNewLine
-    Write-Host "$pwd" -ForegroundColor "Cyan" -NoNewLine
-    Write-Host "] " -Fore "White" 
+    Write-Host $line
     Write-Host ">" -NoNewLine -Fore "Yellow"
     
     return " "
  }
 
- function Get-WifiNetwork {
+ function Show-WifiNetwork {
     #Note try : Get-WifiNetwork | select index, ssid, signal, 'radio type' | sort signal -desc | ft -auto
+    #Doesn't work without the Wireless AutoConfig Service (wlansvc) running... 
+    #Might someday work on fixing that...
  end {
-  netsh wlan sh net mode=bssid | % -process {
-    if ($_ -match '^SSID (\d+) : (.*)$') {
-        $current = @{}
-        $networks += $current
-        $current.Index = $matches[1].trim()
-        $current.SSID = $matches[2].trim()
-    } else {
-        if ($_ -match '^\s+(.*)\s+:\s+(.*)\s*$') {
-            $current[$matches[1].trim()] = $matches[2].trim()
-        }
+    if ($(get-service | where-object { $_.Name -eq "wlansvc" }).Status -eq "Running") { 
+        netsh wlan sh net mode=bssid | % -process {
+            if ($_ -match '^SSID (\d+) : (.*)$') {
+                $current = @{}
+                $networks += $current
+                $current.Index = $matches[1].trim()
+                $current.SSID = $matches[2].trim()
+            } 
+            else {
+                if ($_ -match '^\s+(.*)\s+:\s+(.*)\s*$') {
+                    $current[$matches[1].trim()] = $matches[2].trim()
+                }
+            }
+        } -begin { $networks = @() } -end { $networks|% { new-object psobject -property $_ } }
+     }
+     else {
+        write-Host "Wireless AutoConfig Service (wlansvc) is not running."
     }
-  } -begin { $networks = @() } -end { $networks|% { new-object psobject -property $_ } }
  }
 }
 
-function CountDown() {
-    param(
-    [int]$hours=0, 
-    [int]$minutes=0, 
-    [int]$seconds=0,
-    [switch]$help)
-    $HelpInfo = @'
-
-    Function : CountDown
-    By       : xb90 at http://poshtips.com
-    Date     : 02/22/2011 
-    Purpose  : Pauses a script for the specified period of time and displays
-               a count-down timer to indicate the time remaining.
-    Usage    : Countdown [-Help][-hours n][-minutes n][seconds n]
-               where      
-                      -Help       displays this help
-                      -Hours n    specify the number of hours (default=0)
-                      -Minutes n  specify the number of minutes (default=0)
-                      -Seconds n  specify the number of seconds (default=0)     
-
-'@ 
-
-    if ($help -or (!$hours -and !$minutes -and !$seconds)){
-        write-host $HelpInfo
-        return
-        }
-    $startTime = get-date
-    $endTime = $startTime.addHours($hours)
-    $endTime = $endTime.addMinutes($minutes)
-    $endTime = $endTime.addSeconds($seconds)
-    $timeSpan = new-timespan $startTime $endTime
-    write-host $([string]::format("`nScript paused for {0:#0}:{1:00}:{2:00}",$hours,$minutes,$seconds)) -backgroundcolor black -foregroundcolor yellow
-    while ($timeSpan -gt 0) {
-        $timeSpan = new-timespan $(get-date) $endTime
-        write-host "`r".padright(40," ") -nonewline
-        write-host "`r" -nonewline
-        write-host $([string]::Format("`rTime Remaining: {0:d2}:{1:d2}:{2:d2}", `
-            $timeSpan.hours, `
-            $timeSpan.minutes, `
-            $timeSpan.seconds)) `
-            -nonewline -backgroundcolor black -foregroundcolor yellow
-        sleep 1
-        }
-    write-host ""
-    }
-new-item -path alias:CntDn -value CountDown |out-null
-
-function NewTimestampedFile() {
-Param
-  (
-  [string]$Folder="",
-  [string]$Prefix="temp",
-  [string]$Type="log",
-    [switch]$Help
-  )
-    $HelpInfo = @'
-
-    Function : NewTimestampedFile
-    By       : xb90 at http://poshtips.com
-    Date     : 02/23/2011 
-    Purpose  : Creates a unique timestamp-signature text file.
-    Usage    : NewTempFile [-Help][-folder <text>][-prefix <text>][-type <text>]
-               where      
-                      -Help       displays this help
-                      -Folder     specify a subfolder or complete path
-                                  where the new file will be created
-                      -Prefix     a text string that will be used as the 
-                                  the new file prefix (default=TEMP)
-                      -Type       the filetype to use (default=LOG)
-    Details  : This function will create a new file and any folder (if specified)
-               and return the name of the file.
-               If no parameters are passed, a default file will be created in the
-               current directory. Example:
-                                           temp_20110223-164621-0882.log
-'@    
-    if ($help){
-        write-host $HelpInfo
-        return
-        }
-  
-  #create the folder (if needed) if it does not already exist
-  if ($folder -ne "") {
-    if (!(test-path $folder)) {
-      write-host "creating new folder `"$folder`"..." -back black -fore yellow
-      new-item $folder -type directory | out-null
-      }
-    if (!($folder.endswith("\"))) {
-      $folder += "\"
-      }
-    }
-
-  #generate a unique file name (with path included)
-  $x = get-date
-  $TempFile=[string]::format("{0}_{1}{2:d2}{3:d2}-{4:d2}{5:d2}{6:d2}-{7:d4}.{8}",
-    $Prefix,
-    $x.year,$x.month,$x.day,$x.hour,$x.minute,$x.second,$x.millisecond,
-    $Type)
-  $TempFilePath=[string]::format("{0}{1}",$folder,$TempFile)
-    
-  #create the new file
-  if (!(test-path $TempFilePath)) {
-    new-item -path $TempFilePath -type file | out-null
-    }
-  else {
-    throw "File `"$TempFilePath`" Already Exists!"
-    }
-
-  return $TempFilePath
-}
-new-item -path alias:ntf -value NewTimestampedFile |out-null
+New-Alias -name wifi -value Show-WifiNetwork -Description "List available wifi networks"
 
 function Export-PSCredential {
     param ( 
@@ -558,7 +691,7 @@ function Export-PSCredential {
     # Create temporary object to be serialized to disk
     $export = "" | Select-Object Username, EncryptedPassword
     # Give object a type name which can be identified later
-    $export.PSObject.TypeNames.Insert(0,’ExportedPSCredential’)
+    $export.PSObject.TypeNames.Insert(0,â€™ExportedPSCredentialâ€™)
     $export.Username = $Credential.Username
     # Encrypt SecureString password using Data Protection API
     # Only the current user account can decrypt this cipher
@@ -569,7 +702,7 @@ function Export-PSCredential {
     # Return FileInfo object referring to saved credentials
     Get-Item $Path
   }
-new-item -path alias:ecred -value Export-PSCredential |out-null
+New-Alias -Name ecred -value Export-PSCredential -Description "Export user credentials"
 
 function Import-PSCredential {
     param ( $Path = "credentials.enc.xml",
@@ -610,4 +743,142 @@ function Import-PSCredential {
         $Credential = New-Object System.Management.Automation.PSCredential $Username, $SecurePass
         Write-Output $Credential
   }
-new-item -path alias:icred -value Import-PSCredential |out-null
+New-Alias -Name icred -value Import-PSCredential -Description "Import user credentials"
+
+Function Show-NewCommands {
+    # Displays a list of aliases that have descriptions
+    # Each alias in this file is created with descriptions,
+    # Hence, this shows the list of aliases in this file
+    # (maybe more!)
+    Get-Alias | where-object { $_.Description } | Sort-Object ResolvedCommandName | `
+        format-table @{Expression={$_.ResolvedCommandName};Label="Command";width=22},@{Expression={$_.Name};Label="Alias";width=12},@{Expression={$_.Description};Label="Description"} | `
+        format-color -simplematch @{ '*' = 'Yellow'}
+}
+
+New-Alias -name snew -value Show-NewCommands -Description "Show this list";
+
+function Set-CountDown() {
+    param(
+    [int]$hours=0, 
+    [int]$minutes=0, 
+    [int]$seconds=0,
+    [switch]$help)
+    $HelpInfo = @'
+
+    Function : CountDown
+    By       : xb90 at http://poshtips.com
+    Date     : 02/22/2011 
+    Purpose  : Pauses a script for the specified period of time and displays
+               a count-down timer to indicate the time remaining.
+    Usage    : Countdown [-Help][-hours n][-minutes n][seconds n]
+               where      
+                      -Help       displays this help
+                      -Hours n    specify the number of hours (default=0)
+                      -Minutes n  specify the number of minutes (default=0)
+                      -Seconds n  specify the number of seconds (default=0)     
+
+'@ 
+
+    if ($help -or (!$hours -and !$minutes -and !$seconds)){
+        write-host $HelpInfo
+        return
+        }
+    $startTime = get-date
+    $endTime = $startTime.addHours($hours)
+    $endTime = $endTime.addMinutes($minutes)
+    $endTime = $endTime.addSeconds($seconds)
+    $timeSpan = new-timespan $startTime $endTime
+    write-host $([string]::format("`nScript paused for {0:#0}:{1:00}:{2:00}",$hours,$minutes,$seconds)) -backgroundcolor black -foregroundcolor yellow
+    while ($timeSpan -gt 0) {
+        $timeSpan = new-timespan $(get-date) $endTime
+        write-host "`r".padright(40," ") -nonewline
+        write-host "`r" -nonewline
+        write-host $([string]::Format("`rTime Remaining: {0:d2}:{1:d2}:{2:d2}", `
+            $timeSpan.hours, `
+            $timeSpan.minutes, `
+            $timeSpan.seconds)) `
+            -nonewline -backgroundcolor black -foregroundcolor yellow
+        sleep 1
+        }
+    write-host ""
+    }
+
+set-alias -name tminus -value Set-CountDown -Description "Pause with a countdown timer"
+
+Function Set-ProgramAliases {
+#Create aliases for a list of applications
+#Searches directory for multiple versions
+#Adds aliases for each version...
+
+    # The list is in 
+    #     "alias | program | path"
+    # format
+    # Separator is the pipe | symbol
+    # Each line ends in a comma if it's not the end...
+    #    kinda,
+    #    like,
+    #    this
+    $PgmList = (
+        "word | winword.exe | c:\progra*\micro*office*",
+        "excel | excel.exe | c:\progra*\micro*office*",
+        "primal | PrimalScript.exe | c:\progra*\sapien*"
+    )
+
+    #Now, cycle through each item and search for the correct path(s)
+    foreach ($item in $PgmList) {
+        $name = $item.split("|")[0].trim()
+        $found = find $item.split("|")[2].trim() $item.split("|")[1].trim() | Add-Member -MemberType ScriptProperty -Name ProductName -value { $this.VersionInfo.ProductName } -PassThru | Add-Member -MemberType ScriptProperty -Name Version -value { $this.VersionInfo.ProductVersion } -PassThru | Sort-Object -property @{Expression={$_.Version};Ascending=$False} 
+        #Now, if amything was found, test if the alias exists
+        #Create it if it doesn't
+        foreach ($file in $found) {
+            if (!(test-path Alias:\$name)){
+                set-alias -name $name -value $file.Fullname -Description $file.ProductName -scope Global
+            }
+            #Otherwise, (alias exists) create a new alias with the product version 
+            else {
+                $name += $file.Version.split(".")[0].trim()
+                #But only 1 for each additional major version (so 14.533 and 14.255 will only create 1 alias)
+                if (!(test-path Alias:\$name)){
+                    set-alias -name $name -value $file.Fullname -Description $file.ProductName -scope Global
+                }
+            }
+        }
+    }
+}
+
+function GoHome {
+###[CmdletBinding( SupportsShouldProcess=$true, ConfirmImpact='High')]
+    param( 
+        [Parameter(Mandatory=$False,Position=1)]
+        [switch]$Local = $HomeIsLocal 
+        )
+
+        Set-Variable -name HomeIsLocal -value $Local -Scope Global
+
+
+    if ( $HomeIsLocal ) {
+        $myScriptsDir = "$($env:USERPROFILE)\Documents\Scripts"
+    }
+    else {
+        $myScriptsDir = "$($env:SystemDrive)\Scripts"
+    }
+
+    if (!(test-path $myScriptsDir)){
+        write-host "creating default scripts directory ($myScriptsDir)" -back black -fore green
+        new-item -path $myScriptsDir -type directory -Confirm
+   	}
+    Set-Location $myScriptsDir | out-null
+
+}
+
+New-Alias -name "cd~" -value GoHome -Description "Return to home directory (-Local)";
+
+#####################  Actual Work  #####################
+
+GoHome
+
+#Create the "standard" aliases for programs
+Set-ProgramAliases
+
+#ShowHeader
+Show-NewCommands
