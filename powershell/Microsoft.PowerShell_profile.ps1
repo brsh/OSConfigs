@@ -39,7 +39,7 @@ Set-Variable -name HomeIsLocal -value $True -Scope Global
 
 Try { 
     import-Module Directories -ErrorAction Continue 
-    New-Alias -name ll -value Get-DirInfo -Description "Network info (threaded for quick response)"
+    New-Alias -name ll -value Get-DirInfo -Description "Network info (threaded for quick response)" -Force
     }
 Catch {
     Write-Host "`nDirectories Module not found`n" -ForegroundColor Red
@@ -67,8 +67,8 @@ function ConvertFrom-SID
   Return $objSID.Value
  }
 
-new-alias -name FromSID -value ConvertFrom-SID -Description "Get UserName from SID";
-new-alias -name ToSID -value ConvertTo-SID -Description "Get SID from UserName";
+new-alias -name FromSID -value ConvertFrom-SID -Description "Get UserName from SID" -Force
+new-alias -name ToSID -value ConvertTo-SID -Description "Get SID from UserName" -Force
 
 Function ConvertTo-URLEncode([string]$InText) {
     [System.Reflection.Assembly]::LoadWithPartialName("System.web") | out-null
@@ -80,8 +80,8 @@ Function ConvertFrom-URLEncode([string]$InText) {
     [System.Web.HttpUtility]::UrlDecode($InText)
 }
 
-New-Alias -name "URLEncode" -Value ConvertTo-URLEncode -Description "URL encode a string"
-New-Alias -name "URLDecode" -Value ConvertFrom-URLEncode -Description "URL decode a string"
+New-Alias -name "URLEncode" -Value ConvertTo-URLEncode -Description "URL encode a string" -Force
+New-Alias -name "URLDecode" -Value ConvertFrom-URLEncode -Description "URL decode a string" -Force
 
 Function ConvertTo-Fahrenheit([decimal]$celsius) {
     $((1.8 * $celsius) + 32 )
@@ -91,8 +91,8 @@ Function ConvertTo-Celsius($fahrenheit) {
     $( (($fahrenheit - 32)/9)*5 )
 }
 
-New-Alias -name "ToF" -Value ConvertTo-Fahrenheit -Description "Convert degrees C to F"
-New-Alias -name "ToC" -Value ConvertTo-Celsius -Description "Convert degrees F to C"
+New-Alias -name "ToF" -Value ConvertTo-Fahrenheit -Description "Convert degrees C to F" -Force
+New-Alias -name "ToC" -Value ConvertTo-Celsius -Description "Convert degrees F to C" -Force
 
 function Out-Speech { 
     <# 
@@ -152,7 +152,7 @@ function Out-Speech {
     } 
 }
 
-new-alias -name say -value Out-Speech -Description "Have the computer _speak_ the output";
+new-alias -name say -value Out-Speech -Description "Have the computer _speak_ the output" -Force
 
 function Format-Color([hashtable] $Colors = @{}, [switch] $SimpleMatch) {
     #Just a way to recolor some things that don't have color options
@@ -172,7 +172,7 @@ function Format-Color([hashtable] $Colors = @{}, [switch] $SimpleMatch) {
 	}
 }
 
-Set-Alias -Name clr -value Format-Color -Description "Re-color output text"
+New-Alias -Name clr -value Format-Color -Description "Re-color output text" -Force
 
       #############   Info   ###############
 
@@ -186,7 +186,24 @@ function Show-Profiles {
     $p.exists=(test-path $profile.$_); 
     new-object psobject -property $p} | ft -auto
     }
-New-Alias -name Profs -value Show-Profiles -Description "List PowerShell profile files/paths";
+New-Alias -name Profs -value Show-Profiles -Description "List PowerShell profile files/paths" -Force
+
+function Load-Profiles {
+#Reload all profiles - helpful when editing/testing profiles
+    @(
+        $Profile.AllUsersAllHosts,
+        $Profile.AllUsersCurrentHost,
+        $Profile.CurrentUserAllHosts,
+        $Profile.CurrentUserCurrentHost
+    ) | % {
+        if(Test-Path $_){
+            Write-Host "Loading $_"
+            . $_
+        }
+    } 
+}
+
+New-Alias -name re-Profs -value Load-Profiles -Description "Reload profile files (must . source)" -Force
 
 function Show-SplitEnvPath {
   #display system path components in a human-readable format
@@ -201,7 +218,7 @@ function Show-SplitEnvPath {
     }
   ""
   }
-new-alias -name ePath -value Show-SplitEnvPath -Description "Display the path environment var";
+new-alias -name ePath -value Show-SplitEnvPath -Description "Display the path environment var" -Force
 
       #############   Find   ###############
 
@@ -223,7 +240,7 @@ Function Find-Files{
     End { return $Files }
 }
 
-New-Alias -name find -Value Find-Files -Description "Search multiple folders for files";
+New-Alias -name find -Value Find-Files -Description "Search multiple folders for files" -Force
 
 function Find-InTextFile { 
     <# 
@@ -298,16 +315,16 @@ function Find-InTextFile {
     } 
 }
 
-New-Alias -name grep -value Find-InTextFile -Description "Grep with GSAR abilities"
+New-Alias -name grep -value Find-InTextFile -Description "Grep with GSAR abilities" -Force
 
 function Find-Commands { get-command $args"*" }
-New-Alias -name which -value Find-Commands -Description "Lists/finds commands with specified text";
+New-Alias -name which -value Find-Commands -Description "Lists/finds commands with specified text" -Force
 
       ############# Create   ###############
 
 function New-File($file) { "" | Out-File $file -Encoding ASCII }
 
-New-Alias -name touch -value New-File -Description "Create an empty file";
+New-Alias -name touch -value New-File -Description "Create an empty file" -Force
 
 function New-TimestampedFile() {
 Param
@@ -371,7 +388,7 @@ Param
 
   return $TempFilePath
 }
-New-Alias -Name ntf -value New-TimestampedFile -Description "Create a new file w/timestamped filename"
+New-Alias -Name ntf -value New-TimestampedFile -Description "Create a new file w/timestamped filename" -Force
 
       #############    Get   ###############
 
@@ -407,10 +424,43 @@ function Get-LocalDisk{
       @{Label="Size(GB)"; Alignment="right"; Expression={"{0:N2}" -f ($_.size/1GB)}} `
     | out-default
     }
-New-Alias -name gld -value Get-LocalDisk -Description "Display local disk info";
+New-Alias -name gld -value Get-LocalDisk -Description "Display local disk info" -Force
 
-function Get-IP {ipconfig | where-object {$_ –like “*IPv4 Address*”}}
-New-Alias -name gip -value Get-IP -Description "Display IPv4 Address";
+Function Get-NetInfo {
+#Create/output network info object
+#Borrowed and modded from ps script library
+    $WMIhash = @{
+        Class = "Win32_NetworkAdapterConfiguration"
+        Filter = "IPEnabled='$True'"
+        ErrorAction = "Stop"
+    } 
+    Get-WmiObject @WMIhash | `
+        ForEach {
+            $InfoHash =  @{
+                Computername = $_.DNSHostName
+                DefaultGateway = $_.DefaultIPGateway
+                DHCPServer = $_.DHCPServer
+                DHCPEnabled = $_.DHCPEnabled
+                DHCPLeaseObtained = [System.Management.ManagementDateTimeConverter]::ToDateTime($_.DHCPLeaseObtained)
+                DHCPLeaseExpires = [System.Management.ManagementDateTimeConverter]::ToDateTime($_.DHCPLeaseExpires)
+                DNSServer = $_.DNSServerSearchOrder
+                DNSDomain = $_.DNSDomain
+                IPAddress = $_.IpAddress
+                MACAddress  = $_.MACAddress
+                NICDescription = $_.Description
+                NICName = $_.ServiceName
+                SubnetMask = $_.IPSubnet
+                WINSPrimary = $_.WINSPrimaryServer
+                WINSSecondary = $_.WINSSecondaryServer
+            }
+            $InfoStack = New-Object PSObject -Property $InfoHash
+            #Add a (hopefully) unique object type name
+            $InfoStack.PSTypeNames.Insert(0,"IP.Information")
+            $InfoStack
+        }
+}
+
+New-Alias -name gip -value Get-Netinfo -Description "Display Network info - try (gip)[0].IPAddress[0]" -Force
 
 Function Get-AddressToName($addr) {
     [system.net.dns]::GetHostByAddress($addr)
@@ -420,8 +470,8 @@ Function Get-NameToAddress($addr) {
     [system.net.dns]::GetHostByName($addr)
 }
 
-New-Alias -name "n2a" -value Get-NameToAddress -Description "Get IP Address from DNS by Host Name"
-New-Alias -name "a2n" -value Get-AddressToName -Description "Get Host Name from DNS by IP Address"
+New-Alias -name "n2a" -value Get-NameToAddress -Description "Get IP Address from DNS by Host Name" -Force
+New-Alias -name "a2n" -value Get-AddressToName -Description "Get Host Name from DNS by IP Address" -Force
 
 
       ######################################
@@ -457,7 +507,7 @@ else
 # Return $true if connection Establish else $False
 if($failed){return "Failed"}else{return "Alive"}
 }
-New-Alias -name pp -Value Test-Port -Description "Test a TCP connection on the specified port";
+New-Alias -name pp -Value Test-Port -Description "Test a TCP connection on the specified port" -Force
 
 function Write-Trace
 {
@@ -524,7 +574,7 @@ function Write-Trace
     Out-File -InputObject $Output -Append -NoClobber -Encoding Default -FilePath $FilePath
   }
 }
-New-Alias -name wt -value Write-Trace -Description "Write output in trace32 format";
+New-Alias -name wt -value Write-Trace -Description "Write output in trace32 format" -Force
 
 
 
@@ -553,10 +603,14 @@ function prompt {
     Write-Host " "
     write-host $line
 
+    #Optional Info
+    #[PS $(host.version.ToString())]
+
+
     #Uptime
     #Piece together the length of Uptime so we can right-justify the time
-    #Futz it a little, using length of the non-DateTime chars + 1
-    $tLength = "[up d h:00m:00s]".Length + "[ddd hh:mm?m]".Length + 1
+    #Futz it a little, using length of the non-DateTime chars
+    $tLength = "[up d 00:00m:00s]".Length + "[ddd hh:mm?m]".Length
     $tLength += (($uppity.days).ToString.Length) + $(($uppity).ToString('hh').Length)
     Write-Host "[up " -Fore "White" -NoNewLine
     Write-Host "$($uppity.days)" -Fore "Green" -NoNewLine
@@ -568,24 +622,21 @@ function prompt {
     Write-Host "$(($uppity).ToString('ss'))" -Fore "Green" -NoNewLine
     Write-Host "s]" -Fore "White" -NoNewLine
 
-#    #Battery
-#Unfortunately, this breaks when the window is resized
-#I'll revisit someday....
-#    If (($batt.EstimatedChargeRemaining -ne 100)) {
-#        #Battery Length
-#        $tLength = ((($tLength) * 2) + ("[battery ##% ?]".Length) + 3)
-#        Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
-#        Write-Host "[battery " -Fore "White" -NoNewLine
-#        if (($batt.EstimatedChargeRemaining) -gt 30) {
-#            Write-Host "$($batt.EstimatedChargeRemaining)" -Fore "Green" -NoNewLine
-#        }
-#        else {
-#            Write-Host "$($batt.EstimatedChargeRemaining)" -Fore "Yellow" -NoNewLine
-#        }
-#        Write-Host "% " -Fore "White" -NoNewLine
-#        Write-Host "$battstat" -Fore "Yellow" -NoNewLine
-#        Write-Host "]" -Fore "White" -NoNewline
-#    }
+    #Battery
+    If (($batt.EstimatedChargeRemaining -ne 100)) {
+        #Battery Length
+        $tLength += " [bat ##% ?]".Length
+        Write-Host " [bat " -Fore "White" -NoNewLine
+        if (($batt.EstimatedChargeRemaining) -gt 30) {
+            Write-Host "$($batt.EstimatedChargeRemaining)" -Fore "Green" -NoNewLine
+        }
+        else {
+            Write-Host "$($batt.EstimatedChargeRemaining)" -Fore "Yellow" -NoNewLine
+        }
+        Write-Host "% " -Fore "White" -NoNewLine
+        Write-Host "$battstat" -Fore "Yellow" -NoNewLine
+        Write-Host "]" -Fore "White" -NoNewline
+    }
 
     #Now let's use that futzed length to add some spaces before displaying the time
     Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
@@ -597,13 +648,29 @@ function prompt {
     Write-Host "]" -Fore "White"
 
     #Current Directory
-    $tLength = ("[][@]".Length + ($pwd.Path.Length) + $env:username.Length + $env:computername.Length) + 1
+    #Use ~ if it's the home path
+    $tPath = $pwd.Path
+    $tPath = $tPath.Replace("$env:USERPROFILE", "~")
+    $tLength = ("[][@]".Length + ($tPath.Length) + $env:username.Length + $env:computername.Length) + 1
     Write-Host "[" -Fore "White" -NoNewLine
-    Write-Host "$pwd" -ForegroundColor "Cyan" -NoNewLine
+    Write-Host "$tPath" -ForegroundColor "Cyan" -NoNewLine
     Write-Host "]" -Fore "White" -NoNewLine
 
-    #Now let's use that futzed length to add some spaces before displaying the time
+    #Now let's use that futzed length to add some spaces before displaying the who@where
+    if($IsAdmin) { $tLength += " as ADMIN".Length }
+
+    $tIP = (Get-Netinfo)[0].IpAddress[0]
+    $tLength += ("[] ".Length + $tIP.Length)
+
+    #Write the spaces...
     Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
+
+    #IP Address
+    Write-Host "[" -Fore "White" -NoNewLine
+    Write-Host "$tIP" -Fore "Yellow" -NoNewLine
+    Write-Host "] " -Fore "White" -NoNewLine
+
+
 
     #Username @ machine
     Write-Host "[" -Fore "White" -NoNewLine
@@ -646,7 +713,7 @@ function prompt {
  }
 }
 
-New-Alias -name wifi -value Show-WifiNetwork -Description "List available wifi networks"
+New-Alias -name wifi -value Show-WifiNetwork -Description "List available wifi networks" -Force
 
 function Export-PSCredential {
     param ( 
@@ -702,7 +769,7 @@ function Export-PSCredential {
     # Return FileInfo object referring to saved credentials
     Get-Item $Path
   }
-New-Alias -Name ecred -value Export-PSCredential -Description "Export user credentials"
+New-Alias -Name ecred -value Export-PSCredential -Description "Export user credentials" -Force
 
 function Import-PSCredential {
     param ( $Path = "credentials.enc.xml",
@@ -743,7 +810,7 @@ function Import-PSCredential {
         $Credential = New-Object System.Management.Automation.PSCredential $Username, $SecurePass
         Write-Output $Credential
   }
-New-Alias -Name icred -value Import-PSCredential -Description "Import user credentials"
+New-Alias -Name icred -value Import-PSCredential -Description "Import user credentials" -Force
 
 Function Show-NewCommands {
     # Displays a list of aliases that have descriptions
@@ -755,7 +822,7 @@ Function Show-NewCommands {
         format-color -simplematch @{ '*' = 'Yellow'}
 }
 
-New-Alias -name snew -value Show-NewCommands -Description "Show this list";
+New-Alias -name snew -value Show-NewCommands -Description "Show this list" -Force
 
 function Set-CountDown() {
     param(
@@ -803,7 +870,7 @@ function Set-CountDown() {
     write-host ""
     }
 
-set-alias -name tminus -value Set-CountDown -Description "Pause with a countdown timer"
+set-alias -name tminus -value Set-CountDown -Description "Pause with a countdown timer" -Force
 
 Function Set-ProgramAliases {
 #Create aliases for a list of applications
@@ -871,7 +938,7 @@ function GoHome {
 
 }
 
-New-Alias -name "cd~" -value GoHome -Description "Return to home directory (-Local)";
+New-Alias -name "cd~" -value GoHome -Description "Return to home directory (-Local)" -Force
 
 #####################  Actual Work  #####################
 
