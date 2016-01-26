@@ -5,6 +5,7 @@ $HistoryText = @'
  Date       By   Updates (important: insert newest updates at top)
  ---------- ---- ------------------------------------------------------------------------------
  2016/01/26 BDS Verify . sourced profile reload and react accordingly
+                ModDirs
  2016/01/25 BDS Reload profile!! Fixed battery display and added IP on prompt
  2016/01/15 BDS Updated, more cleaning, made snew dynamic, redid Prog aliases, more...
  2014/09/16 BDS Updated, cleaned up (adjusted ll, lla, added import of Directories module)
@@ -40,13 +41,13 @@ Set-Variable -name HomeIsLocal -value $True -Scope Global
 ##################### Modules ##########################
 
 Try { 
-    import-Module Directories -ErrorAction Continue 
+    import-Module Directories -ErrorAction Stop
     New-Alias -name ll -value Get-DirInfo -Description "Network info (threaded for quick response)" -Force
     }
 Catch {
-    Write-Host "`nDirectories Module not found`n" -ForegroundColor Red
+    Write-Host "`nDirectories Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
+    #Show-ModuleDirs
     }
-
 
 
 ################### Functions #########################
@@ -177,6 +178,14 @@ function Format-Color([hashtable] $Colors = @{}, [switch] $SimpleMatch) {
 New-Alias -Name clr -value Format-Color -Description "Re-color output text" -Force
 
       #############   Info   ###############
+
+function Show-ModuleDirs {
+# Enum the module directories
+    write-host "PowerShell Module Directories: " -fore White
+    ($env:PSModulePath).Split(";") | ForEach-Object { write-host "   "$_ -fore "yellow" }
+}
+
+New-Alias -Name moddirs -Value Show-ModuleDirs -Description "List the module directories" -force
 
 function Show-Profiles {
     #use to quickly check which (if any) profile slots are inuse
