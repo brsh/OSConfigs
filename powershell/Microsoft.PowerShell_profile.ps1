@@ -4,6 +4,8 @@ $HistoryText = @'
  Maintenance Log
  Date       By   Updates (important: insert newest updates at top)
  ---------- ---- ------------------------------------------------------------------------------
+ 2016/01/26 BDS Verify . sourced profile reload and react accordingly
+ 2016/01/25 BDS Reload profile!! Fixed battery display and added IP on prompt
  2016/01/15 BDS Updated, more cleaning, made snew dynamic, redid Prog aliases, more...
  2014/09/16 BDS Updated, cleaned up (adjusted ll, lla, added import of Directories module)
  2012/10/26 BDS Created (ok, assembled)
@@ -190,6 +192,9 @@ New-Alias -name Profs -value Show-Profiles -Description "List PowerShell profile
 
 function Load-Profiles {
 #Reload all profiles - helpful when editing/testing profiles
+Set-Variable -name isDotSourced -value $False -Scope Global
+$isDotSourced = $MyInvocation.InvocationName -eq '.' -or $MyInvocation.Line -eq ''
+if (!($isDotSourced)) { write-host "You must dot source this function" -fore Red; write-host "`t. Load-Profiles`n`t. re-Profs" -ForegroundColor "Yellow"; return "" }
     @(
         $Profile.AllUsersAllHosts,
         $Profile.AllUsersCurrentHost,
@@ -942,10 +947,12 @@ New-Alias -name "cd~" -value GoHome -Description "Return to home directory (-Loc
 
 #####################  Actual Work  #####################
 
-GoHome
+if (!($isDotSourced)) { 
+    #ShowHeader
+    Show-NewCommands
+    
+    #Create the "standard" aliases for programs
+    Set-ProgramAliases
 
-#Create the "standard" aliases for programs
-Set-ProgramAliases
-
-#ShowHeader
-Show-NewCommands
+    GoHome
+}
