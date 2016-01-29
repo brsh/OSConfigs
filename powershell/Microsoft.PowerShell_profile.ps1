@@ -46,7 +46,6 @@ Try {
     }
 Catch {
     Write-Host "`nDirectories Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
-    #Show-ModuleDirs
     }
 
 
@@ -56,7 +55,7 @@ Catch {
 
 function ConvertFrom-SID
  {
-  param([string]$SID)
+  param([string]$SID="S-1-0-0")
   $objSID = New-Object System.Security.Principal.SecurityIdentifier($SID)
   $objUser = $objSID.Translate([System.Security.Principal.NTAccount])
   Return $objUser.Value
@@ -64,7 +63,7 @@ function ConvertFrom-SID
 
  function ConvertTo-SID
  {
-  param([string]$ID)
+  param([string]$ID="Null SID")
   $objID = New-Object System.Security.Principal.NTAccount($ID)
   $objSID = $objID.Translate([System.Security.Principal.SecurityIdentifier])
   Return $objSID.Value
@@ -73,12 +72,12 @@ function ConvertFrom-SID
 new-alias -name FromSID -value ConvertFrom-SID -Description "Get UserName from SID" -Force
 new-alias -name ToSID -value ConvertTo-SID -Description "Get SID from UserName" -Force
 
-Function ConvertTo-URLEncode([string]$InText) {
+Function ConvertTo-URLEncode([string]$InText="You did not enter any text!") {
     [System.Reflection.Assembly]::LoadWithPartialName("System.web") | out-null
     [System.Web.HttpUtility]::UrlEncode($InText)
 }
 
-Function ConvertFrom-URLEncode([string]$InText) {
+Function ConvertFrom-URLEncode([string]$InText="You+did+not+enter+any+text!") {
     [System.Reflection.Assembly]::LoadWithPartialName("System.web") | out-null
     [System.Web.HttpUtility]::UrlDecode($InText)
 }
@@ -161,9 +160,9 @@ function Format-Color([hashtable] $Colors = @{}, [switch] $SimpleMatch) {
     #Just a way to recolor some things that don't have color options
     #can handle regex or simpler matching (like just * to recolor everything)
 	$lines = ($input | Out-String) -replace "`r", "" -split "`n"
-	foreach($line in $lines) {
+	ForEach ($line in $lines) {
 		$color = ''
-		foreach($pattern in $Colors.Keys){
+		ForEach ($pattern in $Colors.Keys){
 			if(!$SimpleMatch -and $line -match $pattern) { $color = $Colors[$pattern] }
 			elseif ($SimpleMatch -and $line -like $pattern) { $color = $Colors[$pattern] }
 		}
@@ -189,17 +188,17 @@ New-Alias -Name moddirs -Value Show-ModuleDirs -Description "List the module dir
 
 function Show-Profiles {
     #use to quickly check which (if any) profile slots are inuse
-    $profile|gm *Host*| `
-    % {$_.name}| `
-    % {$p=@{}; `
+    $profile| Get-Member *Host*| `
+    ForEach-Object {$_.name}| `
+    ForEach-Object {$p=@{}; `
     $p.name=$_; `
     $p.path=$profile.$_; `
     $p.exists=(test-path $profile.$_); 
-    new-object psobject -property $p} | ft -auto
+    new-object -TypeName psobject -property $p} | Format-Table -auto
     }
 New-Alias -name Profs -value Show-Profiles -Description "List PowerShell profile files/paths" -Force
 
-function Load-Profiles {
+function Read-Profiles {
 #Reload all profiles - helpful when editing/testing profiles
 Set-Variable -name isDotSourced -value $False -Scope Global
 $isDotSourced = $MyInvocation.InvocationName -eq '.' -or $MyInvocation.Line -eq ''
@@ -209,7 +208,7 @@ if (!($isDotSourced)) { write-host "You must dot source this function" -fore Red
         $Profile.AllUsersCurrentHost,
         $Profile.CurrentUserAllHosts,
         $Profile.CurrentUserCurrentHost
-    ) | % {
+    ) | ForEach-Object {
         if(Test-Path $_){
             Write-Host "Loading $_"
             . $_
@@ -217,14 +216,14 @@ if (!($isDotSourced)) { write-host "You must dot source this function" -fore Red
     } 
 }
 
-New-Alias -name re-Profs -value Load-Profiles -Description "Reload profile files (must . source)" -Force
+New-Alias -name re-Profs -value Read-Profiles -Description "Reload profile files (must . source)" -Force
 
 function Show-SplitEnvPath {
   #display system path components in a human-readable format
-  $p = @(get-content env:path|% {$_.split(";")})
+  $p = @(get-content env:path| ForEach-Object {$_.split(";")})
   "Path"
   "===="
-  foreach ($p1 in $p){
+  ForEach ($p1 in $p){
     if ($p1.trim() -gt ""){
       $i+=1;
       "$i : $p1"
@@ -244,7 +243,7 @@ Function Find-Files{
 
     Process {
         $Files = @()
-        ForEach($Location in $Locations) {
+        ForEach ($Location in $Locations) {
             if (test-path $Location) {
                 $Files += Get-ChildItem -Path $Location -Filter $SearchFor -Recurse -ErrorAction SilentlyContinue
            }
@@ -303,7 +302,7 @@ function Find-InTextFile {
     } 
     process { 
         try { 
-            foreach ($File in $FilePath) { 
+            ForEach ($File in $FilePath) { 
                 if ($Replace) { 
                     if ($NewFilePath) { 
                         if ((Test-Path -Path $NewFilePath -PathType 'Leaf') -and $Force.IsPresent) { 
@@ -407,19 +406,14 @@ New-Alias -Name ntf -value New-TimestampedFile -Description "Create a new file w
       #############    Get   ###############
 
 function get-uptime {
-        $WMIHash = @{
-            ComputerName = "."
-            ErrorAction = 'Stop'
-            Query= "SELECT LastBootUpTime FROM Win32_OperatingSystem"
-            NameSpace='Root\CimV2'
-        }
-        $wmi = Get-WmiObject @WMIHash
-        $retval = (Get-Date) - $($wmi.ConvertToDateTime($wmi.LastBootUpTime))
-        return $retval
+    $wmi = Get-CIMInstance Win32_OperatingSystem
+    $retval = (get-date)-($wmi)[0].LastBootUpTime
+    return $retval
 }
 
 function get-battery {
-    $charge = get-wmiobject Win32_Battery
+    #$charge = get-wmiobject Win32_Battery
+    $charge = Get-CimInstance Win32_Battery
     return $charge    
 }
 
@@ -640,7 +634,9 @@ function prompt {
     If (($batt.EstimatedChargeRemaining -ne 100)) {
         #Battery Length
         $tLength += " [bat ##% ?]".Length
-        Write-Host " [bat " -Fore "White" -NoNewLine
+        #Write the blanks to right justify
+        Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
+        Write-Host "[bat " -Fore "White" -NoNewLine
         if (($batt.EstimatedChargeRemaining) -gt 30) {
             Write-Host "$($batt.EstimatedChargeRemaining)" -Fore "Green" -NoNewLine
         }
@@ -649,11 +645,12 @@ function prompt {
         }
         Write-Host "% " -Fore "White" -NoNewLine
         Write-Host "$battstat" -Fore "Yellow" -NoNewLine
-        Write-Host "]" -Fore "White" -NoNewline
+        Write-Host "] " -Fore "White" -NoNewline
     }
-
-    #Now let's use that futzed length to add some spaces before displaying the time
-    Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
+    else {
+        #skip the battery and just write the blanks to right justify
+        Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
+    }
 
     #Day and Time
     Write-Host "[" -Fore "White" -NoNewLine
@@ -673,17 +670,24 @@ function prompt {
     #Now let's use that futzed length to add some spaces before displaying the who@where
     if($IsAdmin) { $tLength += " as ADMIN".Length }
 
-    $tIP = (Get-Netinfo)[0].IpAddress[0]
-    $tLength += ("[] ".Length + $tIP.Length)
+    $tIP = Get-NetInfo
+    if ($tIP -ne $null ) {
+        #Yay, we have network info - split it down to just the 1st ipv4 address
+        $tIP = $tIP[0].IPAddress[0]
+        $tLength += ("[] ".Length + $tIP.Length)
 
-    #Write the spaces...
-    Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
+        #Write the spaces...
+        Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
 
-    #IP Address
-    Write-Host "[" -Fore "White" -NoNewLine
-    Write-Host "$tIP" -Fore "Yellow" -NoNewLine
-    Write-Host "] " -Fore "White" -NoNewLine
-
+        #IP Address
+        Write-Host "[" -Fore "White" -NoNewLine
+        Write-Host "$tIP" -Fore "Yellow" -NoNewLine
+        Write-Host "] " -Fore "White" -NoNewLine
+    }
+    else {
+        #Skip the ip section and just write the spaces...
+        Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
+    }
 
 
     #Username @ machine
@@ -707,7 +711,7 @@ function prompt {
     #Might someday work on fixing that...
  end {
     if ($(get-service | where-object { $_.Name -eq "wlansvc" }).Status -eq "Running") { 
-        netsh wlan sh net mode=bssid | % -process {
+        netsh wlan sh net mode=bssid | ForEach-Object -process {
             if ($_ -match '^SSID (\d+) : (.*)$') {
                 $current = @{}
                 $networks += $current
@@ -719,7 +723,7 @@ function prompt {
                     $current[$matches[1].trim()] = $matches[2].trim()
                 }
             }
-        } -begin { $networks = @() } -end { $networks|% { new-object psobject -property $_ } }
+        } -begin { $networks = @() } -end { $networks | ForEach-Object { new-object psobject -property $_ } }
      }
      else {
         write-Host "Wireless AutoConfig Service (wlansvc) is not running."
@@ -879,7 +883,7 @@ function Set-CountDown() {
             $timeSpan.minutes, `
             $timeSpan.seconds)) `
             -nonewline -backgroundcolor black -foregroundcolor yellow
-        sleep 1
+        Start-Sleep 1
         }
     write-host ""
     }
@@ -906,12 +910,12 @@ Function Set-ProgramAliases {
     )
 
     #Now, cycle through each item and search for the correct path(s)
-    foreach ($item in $PgmList) {
+    ForEach ($item in $PgmList) {
         $name = $item.split("|")[0].trim()
-        $found = find $item.split("|")[2].trim() $item.split("|")[1].trim() | Add-Member -MemberType ScriptProperty -Name ProductName -value { $this.VersionInfo.ProductName } -PassThru | Add-Member -MemberType ScriptProperty -Name Version -value { $this.VersionInfo.ProductVersion } -PassThru | Sort-Object -property @{Expression={$_.Version};Ascending=$False} 
+        $found = Find-Files $item.split("|")[2].trim() $item.split("|")[1].trim() | Add-Member -MemberType ScriptProperty -Name ProductName -value { $this.VersionInfo.ProductName } -PassThru | Add-Member -MemberType ScriptProperty -Name Version -value { $this.VersionInfo.ProductVersion } -PassThru | Sort-Object -property @{Expression={$_.Version};Ascending=$False} 
         #Now, if amything was found, test if the alias exists
         #Create it if it doesn't
-        foreach ($file in $found) {
+        ForEach ($file in $found) {
             if (!(test-path Alias:\$name)){
                 set-alias -name $name -value $file.Fullname -Description $file.ProductName -scope Global
             }
