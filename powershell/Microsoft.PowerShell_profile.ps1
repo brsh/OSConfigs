@@ -4,6 +4,7 @@ $HistoryText = @'
  Maintenance Log
  Date       By  Updates (important: insert newest updates at top)
  ---------- --- ------------------------------------------------------------------------------
+ 2016/02/22 BDS Added the call to load the psSysInfo module; adjusted get-ip to not be get-nic
  2016/02/09 BDS Updated battery wmi call and prompt
  2016/01/26 BDS Verify . sourced profile reload and react accordingly
                 ModDirs
@@ -43,10 +44,17 @@ Set-Variable -name HomeIsLocal -value $True -Scope Global
 
 Try { 
     import-Module Directories -ErrorAction Stop
-    New-Alias -name ll -value Get-DirInfo -Description "Network info (threaded for quick response)" -Force
+    New-Alias -name ll -value Get-DirInfo -Description "Colorized directory info" -Force
     }
 Catch {
     Write-Host "`nDirectories Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
+    }
+
+Try { 
+    import-Module psSysInfo -ErrorAction Stop
+    }
+Catch {
+    Write-Host "`npsSysInfo Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
     }
 
 
@@ -107,9 +115,6 @@ function Out-Speech {
  
     .PARAMETER  Message 
         Type in the message you want here. 
- 
-    .PARAMETER  Gender 
-        The description of a the ParameterB parameter. 
  
     .EXAMPLE 
         PS C:\> Out-Speech -Message "Testing the function" -Gender 'Female' 
@@ -179,15 +184,15 @@ New-Alias -Name clr -value Format-Color -Description "Re-color output text" -For
 
       #############   Info   ###############
 
-function Show-ModuleDirs {
+function Get-ModuleDirs {
 # Enum the module directories
     write-host "PowerShell Module Directories: " -fore White
     ($env:PSModulePath).Split(";") | ForEach-Object { write-host "   "$_ -fore "yellow" }
 }
 
-New-Alias -Name moddirs -Value Show-ModuleDirs -Description "List the module directories" -force
+New-Alias -Name moddirs -Value Get-ModuleDirs -Description "List the module directories" -force
 
-function Show-Profiles {
+function Get-Profiles {
     #use to quickly check which (if any) profile slots are inuse
     $profile| Get-Member *Host*| `
     ForEach-Object {$_.name}| `
@@ -197,7 +202,7 @@ function Show-Profiles {
     $p.exists=(test-path $profile.$_); 
     new-object -TypeName psobject -property $p} | Format-Table -auto
     }
-New-Alias -name Profs -value Show-Profiles -Description "List PowerShell profile files/paths" -Force
+New-Alias -name Profs -value Get-Profiles -Description "List PowerShell profile files/paths" -Force
 
 function Read-Profiles {
 #Reload all profiles - helpful when editing/testing profiles
@@ -219,7 +224,7 @@ if (!($isDotSourced)) { write-host "You must dot source this function" -fore Red
 
 New-Alias -name re-Profs -value Read-Profiles -Description "Reload profile files (must . source)" -Force
 
-function Show-SplitEnvPath {
+function Get-SplitEnvPath {
   #display system path components in a human-readable format
   $p = @(get-content env:path| ForEach-Object {$_.split(";")})
   "Path"
@@ -232,7 +237,7 @@ function Show-SplitEnvPath {
     }
   ""
   }
-new-alias -name ePath -value Show-SplitEnvPath -Description "Display the path environment var" -Force
+new-alias -name ePath -value Get-SplitEnvPath -Description "Display the path environment var" -Force
 
       #############   Find   ###############
 
@@ -412,77 +417,7 @@ function get-uptime {
     return $retval
 }
 
-#function get-battery {
-#    #$charge = get-wmiobject Win32_Battery
-#    $charge = Get-CimInstance Win32_Battery
-#    return $charge    
-#}
-
-function Get-Battery {
-    Get-WmiObject -Class win32_Battery -ComputerName localhost | `
-        ForEach-Object {
-            switch ($_.BatteryStatus) {
-                1 { $textstat = "Discharging"; $charstat = "--"; break }
-                2 { $textstat = "On AC"; $charstat = "AC"; break } #Actually AC
-                3 { $textstat = "Charged"; $charstat = "=="; break }
-                4 { $textstat = "Low"; $charstat = "__"; break }
-                5 { $textstat = "Critical"; $charstat = "!!"; break }
-                6 { $textstat = "Charging"; $charstat = "++"; break }
-                7 { $textstat = "Charging/High"; $charstat = "++"; break }
-                8 { $textstat = "Charging/Low"; $charstat = "+_"; break }
-                9 { $textstat = "Charging/Critical"; $charstat = "+!"; break }
-                10 { $textstat = "Undefined"; $charstat = "??"; break }
-                11 { $textstat = "Partially Charged"; $charstat = "//"; break }
-                Default { $textstat = "Unknown"; $charstat = "??"; break }
-            }
-            $ts = New-TimeSpan -Minutes $_.EstimatedRunTime
-            $InfoHash =  @{
-                Computername = $_.PSComputerName
-                BatteryStatus = $_.BatteryStatus
-                BatteryStatusText = $textstat
-                BatteryStatusChar = $charstat
-                Name = $_.Name
-                Description = $_.Description
-                EstimatedChargeRemaining = $_.EstimatedChargeRemaining
-                RunTimeMinutes = $_.EstimatedRunTime
-                RunTime = '{0:00}h {1:00}m' -f $ts.Hours,$ts.Minutes
-                RunTimeSpan = $ts
-                Health = $_.Status
-            }
-            $InfoStack += New-Object -TypeName PSObject -Property $InfoHash
-        }
-
-        #Add a (hopefully) unique object type name
-        $InfoStack.PSTypeNames.Insert(0,"CPU.Information")
-
-        #Sets the "default properties" when outputting the variable... but really for setting the order
-        $defaultProperties = @('Computername', 'Name', 'Description', 'BatteryStatus', 'BatteryStatusText', 'BatteryStatusChar', 'Health', 'EstimatedChargeRemaining', 'RunTimeMinutes', 'RunTime', 'RunTimeSpan')
-        $defaultDisplayPropertySet = New-Object System.Management.Automation.PSPropertySet(‘DefaultDisplayPropertySet’,[string[]]$defaultProperties)
-        $PSStandardMembers = [System.Management.Automation.PSMemberInfo[]]@($defaultDisplayPropertySet)
-        $InfoStack | Add-Member MemberSet PSStandardMembers $PSStandardMembers
-
-        $InfoStack
-}
-
-
-function Get-LocalDisk{
-  Param ([string] $hostname="localhost")
-  #Quick Local Disk check
-  "***************************************************************"
-  "*** $hostname : Local Disk Info"
-  Get-WmiObject `
-    -computer $hostname `
-    -query "SELECT * from Win32_LogicalDisk WHERE DriveType=3" `
-    | format-table -autosize `
-      DeviceId, `
-      VolumeName, `
-      @{Label="FreeSpace(GB)"; Alignment="right"; Expression={"{0:N2}" -f ($_.FreeSpace/1GB)}},`
-      @{Label="Size(GB)"; Alignment="right"; Expression={"{0:N2}" -f ($_.size/1GB)}} `
-    | out-default
-    }
-New-Alias -name gld -value Get-LocalDisk -Description "Display local disk info" -Force
-
-Function Get-NetInfo {
+Function Get-IPInfo {
 #Create/output network info object
 #Borrowed and modded from ps script library
     $WMIhash = @{
@@ -516,7 +451,7 @@ Function Get-NetInfo {
         }
 }
 
-New-Alias -name gip -value Get-Netinfo -Description "Display Network info - try (gip)[0].IPAddress[0]" -Force
+New-Alias -name gip -value Get-IPInfo -Description "Display Network info - try (gip)[0].IPAddress[0]" -Force
 
 Function Get-AddressToName($addr) {
     [system.net.dns]::GetHostByAddress($addr)
@@ -718,7 +653,7 @@ function prompt {
     if($IsAdmin) { $tLength += " as ADMIN".Length }
     
     Try {
-        $tIP = Get-NetInfo
+        $tIP = Get-IPInfo
     }
     Catch {
         $tIP = $null
@@ -757,7 +692,7 @@ function prompt {
     return " "
  }
 
- function Show-WifiNetwork {
+ function Get-WifiNetworks {
     #Note try : Get-WifiNetwork | select index, ssid, signal, 'radio type' | sort signal -desc | ft -auto
     #Doesn't work without the Wireless AutoConfig Service (wlansvc) running... 
     #Might someday work on fixing that...
@@ -783,7 +718,7 @@ function prompt {
  }
 }
 
-New-Alias -name wifi -value Show-WifiNetwork -Description "List available wifi networks" -Force
+New-Alias -name wifi -value Get-WifiNetworks -Description "List available wifi networks" -Force
 
 function Export-PSCredential {
     param ( 
@@ -882,17 +817,20 @@ function Import-PSCredential {
   }
 New-Alias -Name icred -value Import-PSCredential -Description "Import user credentials" -Force
 
-Function Show-NewCommands {
+Function Get-NewCommands {
     # Displays a list of aliases that have descriptions
     # Each alias in this file is created with descriptions,
     # Hence, this shows the list of aliases in this file
     # (maybe more!)
-    Get-Alias | where-object { $_.Description } | Sort-Object ResolvedCommandName | `
+    $retval = Get-Alias | where-object { $_.Description } 
+    $retval += Get-Alias | Where-Object { $_.Source -match "psSysInfo" }
+    
+    $retval | Sort-Object ResolvedCommandName -unique | `
         format-table @{Expression={$_.ResolvedCommandName};Label="Command";width=22},@{Expression={$_.Name};Label="Alias";width=12},@{Expression={$_.Description};Label="Description"} | `
         format-color -simplematch @{ '*' = 'Yellow'}
 }
 
-New-Alias -name snew -value Show-NewCommands -Description "Show this list" -Force
+New-Alias -name snew -value Get-NewCommands -Description "Show this list" -Force
 
 function Set-CountDown() {
     param(
@@ -1014,7 +952,7 @@ New-Alias -name "cd~" -value GoHome -Description "Return to home directory (-Loc
 
 if (!($isDotSourced)) { 
     #ShowHeader
-    Show-NewCommands
+    Get-NewCommands
     
     #Create the "standard" aliases for programs
     Set-ProgramAliases
