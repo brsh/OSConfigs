@@ -57,6 +57,12 @@ Catch {
     Write-Host "`npsSysInfo Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
     }
 
+Try { 
+    import-Module psPrompt -ErrorAction Stop
+    }
+Catch {
+    Write-Host "`npsPrompt Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
+    }
 
 ################### Functions #########################
 
@@ -411,48 +417,6 @@ New-Alias -Name ntf -value New-TimestampedFile -Description "Create a new file w
 
       #############    Get   ###############
 
-function get-uptime {
-    $wmi = Get-CIMInstance Win32_OperatingSystem
-    $retval = (get-date)-($wmi)[0].LastBootUpTime
-    return $retval
-}
-
-Function Get-IPInfo {
-#Create/output network info object
-#Borrowed and modded from ps script library
-    $WMIhash = @{
-        Class = "Win32_NetworkAdapterConfiguration"
-        Filter = "IPEnabled='$True'"
-        ErrorAction = "Stop"
-    } 
-    Get-WmiObject @WMIhash | `
-        ForEach {
-            $InfoHash =  @{
-                Computername = $_.DNSHostName
-                DefaultGateway = $_.DefaultIPGateway
-                DHCPServer = $_.DHCPServer
-                DHCPEnabled = $_.DHCPEnabled
-                DHCPLeaseObtained = [System.Management.ManagementDateTimeConverter]::ToDateTime($_.DHCPLeaseObtained)
-                DHCPLeaseExpires = [System.Management.ManagementDateTimeConverter]::ToDateTime($_.DHCPLeaseExpires)
-                DNSServer = $_.DNSServerSearchOrder
-                DNSDomain = $_.DNSDomain
-                IPAddress = $_.IpAddress
-                MACAddress  = $_.MACAddress
-                NICDescription = $_.Description
-                NICName = $_.ServiceName
-                SubnetMask = $_.IPSubnet
-                WINSPrimary = $_.WINSPrimaryServer
-                WINSSecondary = $_.WINSSecondaryServer
-            }
-            $InfoStack = New-Object PSObject -Property $InfoHash
-            #Add a (hopefully) unique object type name
-            $InfoStack.PSTypeNames.Insert(0,"IP.Information")
-            $InfoStack
-        }
-}
-
-New-Alias -name gip -value Get-IPInfo -Description "Display Network info - try (gip)[0].IPAddress[0]" -Force
-
 Function Get-AddressToName($addr) {
     [system.net.dns]::GetHostByAddress($addr)
 }
@@ -568,131 +532,7 @@ function Write-Trace
 New-Alias -name wt -value Write-Trace -Description "Write output in trace32 format" -Force
 
 
-
-
-function prompt {
-    # Make sure Windows and .Net know where we are (they can only handle the FileSystem)
-    [Environment]::CurrentDirectory = (Get-Location -PSProvider FileSystem).ProviderPath
-    # Also, put the path in the title ... (don't restrict this to the FileSystem
-    $Host.UI.RawUI.WindowTitle = "{0} - {1} ({2})" -f $global:WindowTitlePrefix,$pwd.Path,$pwd.Provider.Name
-
-    $line = $('─' * (($Host.UI.RawUI.WindowSize.Width)-1))
-
-    $uppity = (get-uptime)
-
-    $batt = (get-battery)
-    $battstat = $batt[0].BatteryStatusChar
-
-
-    Write-Host " "
-    write-host $line
-
-    #Optional Info
-    #[PS $($host.version.Major.ToString() + "." + $host.version.minor.ToString())]
-
-
-    #Uptime
-    #Piece together the length of Uptime so we can right-justify the time
-    #Futz it a little, using length of the non-DateTime chars
-    $tLength = "[up d 00:00m:00s]".Length + "[ddd hh:mm?m]".Length
-    $tLength += (($uppity.days).ToString.Length) + $(($uppity).ToString('hh').Length)
-    Write-Host "[up " -Fore "White" -NoNewLine
-    Write-Host "$($uppity.days)" -Fore "Green" -NoNewLine
-    Write-Host "d " -Fore "White" -NoNewLine
-    Write-Host "$(($uppity).ToString('hh'))" -Fore "Green" -NoNewLine
-    Write-Host "h:" -Fore "White" -NoNewLine
-    Write-Host "$(($uppity).ToString('mm'))" -Fore "Green" -NoNewLine
-    Write-Host "m:" -Fore "White" -NoNewLine
-    Write-Host "$(($uppity).ToString('ss'))" -Fore "Green" -NoNewLine
-    Write-Host "s]" -Fore "White" -NoNewLine
-
-    #Battery
-    If (($batt.EstimatedChargeRemaining -ne 100)) {
-        #Battery Length
-        $tLength += " [bat ##% ?? h 00m]".Length
-        $tLength += $batt[0].RunTimeSpan.Hours.ToString().Length
-        #Write the blanks to right justify
-        Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
-        Write-Host "[bat " -Fore "White" -NoNewLine
-        if (($batt.EstimatedChargeRemaining) -gt 30) {
-            Write-Host "$($batt[0].EstimatedChargeRemaining)" -Fore "Green" -NoNewLine
-        }
-        else {
-            Write-Host "$($batt[0].EstimatedChargeRemaining)" -Fore "Yellow" -NoNewLine
-        }
-        Write-Host "% " -Fore "White" -NoNewLine
-        Write-Host "$battstat " -Fore "Yellow" -NoNewLine
-        Write-Host $batt[0].RunTimeSpan.Hours -Fore "Green" -NoNewline
-        Write-Host "h " -Fore "White" -NoNewLine
-        Write-Host $batt[0].RunTimeSpan.Minutes -Fore "Green" -NoNewline
-        Write-Host "m" -Fore "White" -NoNewLine
-
-        Write-Host "] " -Fore "White" -NoNewline
-    }
-    else {
-        #skip the battery and just write the blanks to right justify
-        Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
-    }
-
-    #Day and Time
-    Write-Host "[" -Fore "White" -NoNewLine
-    Write-Host "$((get-date).ToString('ddd')) " -Fore "Green" -NoNewLine
-    Write-Host "$((get-date).ToString('hh:mmtt').ToLower())" -Fore "Yellow" -NoNewLine
-    Write-Host "]" -Fore "White"
-
-    #Current Directory
-    #Use ~ if it's the home path
-    $tPath = $pwd.Path
-    $tPath = $tPath.Replace("$env:USERPROFILE", "~")
-    $tLength = ("[][@]".Length + ($tPath.Length) + $env:username.Length + $env:computername.Length) + 1
-    Write-Host "[" -Fore "White" -NoNewLine
-    Write-Host "$tPath" -ForegroundColor "Cyan" -NoNewLine
-    Write-Host "]" -Fore "White" -NoNewLine
-
-    #Now let's use that futzed length to add some spaces before displaying the who@where
-    if($IsAdmin) { $tLength += " as ADMIN".Length }
-    
-    Try {
-        $tIP = Get-IPInfo
-    }
-    Catch {
-        $tIP = $null
-    }
-    if ($tIP -ne $null ) {
-        #Yay, we have network info - split it down to just the 1st ipv4 address
-        $tIP = $tIP[0].IPAddress[0]
-        $tLength += ("[] ".Length + $tIP.Length)
-
-        #Write the spaces...
-        Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
-
-        #IP Address
-        Write-Host "[" -Fore "White" -NoNewLine
-        Write-Host "$tIP" -Fore "Yellow" -NoNewLine
-        Write-Host "] " -Fore "White" -NoNewLine
-    }
-    else {
-        #Skip the ip section and just write the spaces...
-        Write-Host (' ' * (($Host.UI.RawUI.WindowSize.Width) - $tLength)) -NoNewLine
-    }
-
-
-    #Username @ machine
-    Write-Host "[" -Fore "White" -NoNewLine
-    Write-Host "$env:username" -Fore "Green" -NoNewLine
-    Write-Host "@" -Fore "White" -NoNewLine
-    Write-Host "$(($env:computername).ToLower())" -Fore "Magenta" -NoNewLine
-
-    if($IsAdmin) { Write-Host " as ADMIN" -Fore "Red" -NoNewLine }
-    Write-Host "]" -Fore "White" 
-
-    Write-Host $line
-    Write-Host ">" -NoNewLine -Fore "Yellow"
-    
-    return " "
- }
-
- function Get-WifiNetworks {
+function Get-WifiNetworks {
     #Note try : Get-WifiNetwork | select index, ssid, signal, 'radio type' | sort signal -desc | ft -auto
     #Doesn't work without the Wireless AutoConfig Service (wlansvc) running... 
     #Might someday work on fixing that...
