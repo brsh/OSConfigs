@@ -58,6 +58,13 @@ Catch {
     }
 
 Try { 
+    import-Module psOutput -ErrorAction Stop
+    }
+Catch {
+    Write-Host "`npsOutput Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
+    }
+
+Try { 
     import-Module psPrompt -ErrorAction Stop
     }
 Catch {
@@ -111,82 +118,7 @@ Function ConvertTo-Celsius($fahrenheit) {
 New-Alias -name "ToF" -Value ConvertTo-Fahrenheit -Description "Convert degrees C to F" -Force
 New-Alias -name "ToC" -Value ConvertTo-Celsius -Description "Convert degrees F to C" -Force
 
-function Out-Speech { 
-    <# 
-    .SYNOPSIS 
-        This is a Text to Speech Function made in powershell. 
- 
-    .DESCRIPTION 
-        This is a Text to Speech Function made in powershell. 
- 
-    .PARAMETER  Message 
-        Type in the message you want here. 
- 
-    .EXAMPLE 
-        PS C:\> Out-Speech -Message "Testing the function" -Gender 'Female' 
-         
-    .EXAMPLE 
-        PS C:\> "Testing the function 1","Testing the function 2 ","Testing the function 3","Testing the function 4 ","Testing the function 5 ","Testing the function 6" | Foreach-Object { Out-Speech -Message $_ } 
-     
-    .EXAMPLE 
-        PS C:\> "Testing the Pipeline" | Out-Speech 
- 
-    .INPUTS 
-        System.String 
- 
-    #> 
-    [CmdletBinding()] 
-    param( 
-        [Parameter(Position=0, Mandatory=$true,ValueFromPipeline=$true)] 
-        [System.String] 
-        $Message, 
-        [Parameter(Position=1)] 
-        [System.String] 
-        [validateset('Male','Female')] 
-        $Gender = 'Female' 
-    ) 
-    begin { 
-        try { 
-             Add-Type -Assembly System.Speech -ErrorAction Stop 
-        } 
-        catch { 
-            Write-Error -Message "Error loading the requered assemblies" 
-        } 
-    } 
-    process { 
-            $voice = New-Object -TypeName 'System.Speech.Synthesis.SpeechSynthesizer' -ErrorAction Stop 
-            
-            Write-Verbose "Selecting a $Gender voice" 
-            $voice.SelectVoiceByHints($Gender) 
-             
-            Write-Verbose -Message "Start Speaking" 
-            $voice.Speak($message) | Out-Null 
-    } 
-    end { 
-    } 
-}
 
-new-alias -name say -value Out-Speech -Description "Have the computer _speak_ the output" -Force
-
-function Format-Color([hashtable] $Colors = @{}, [switch] $SimpleMatch) {
-    #Just a way to recolor some things that don't have color options
-    #can handle regex or simpler matching (like just * to recolor everything)
-	$lines = ($input | Out-String) -replace "`r", "" -split "`n"
-	ForEach ($line in $lines) {
-		$color = ''
-		ForEach ($pattern in $Colors.Keys){
-			if(!$SimpleMatch -and $line -match $pattern) { $color = $Colors[$pattern] }
-			elseif ($SimpleMatch -and $line -like $pattern) { $color = $Colors[$pattern] }
-		}
-		if($color) {
-			Write-Host -ForegroundColor $color $line
-		} else {
-			Write-Host $line
-		}
-	}
-}
-
-New-Alias -Name clr -value Format-Color -Description "Re-color output text" -Force
 
       #############   Info   ###############
 
@@ -464,73 +396,6 @@ if($failed){return "Failed"}else{return "Alive"}
 }
 New-Alias -name pp -Value Test-Port -Description "Test a TCP connection on the specified port" -Force
 
-function Write-Trace
-{
-  <#
-    .Synopsis
-      Write a message to a log file in a format compatible with Trace32 and Config Manager logs.
-    .Description
-      This cmdlet takes a given message and formats that message such that it's compatible with
-      the Trace32 log viewer tool used for reading/parsing System Center log files.
-      
-      The date and time (to the millisecond) is determined at the time that this cmdlet is called.
-      Several optional arguments can be provided, to define the Component generating the log
-      message, the File that is generating the message, the Thread ID, and the Context under which
-      the log entry is being made.
-    .Parameter Message
-      The actual message to be logged.
-    .Parameter Component
-      The Component generating the logging event.
-    .Parameter File
-      The File generating the logging event.
-    .Parameter Thread
-      The Thread ID of the thread generating the logging event.
-    .Parameter Context
-    .Parameter FilePath
-      The path to the log file to be generated/written to. By default this cmdlet looks for a
-      variable called "WRITELOGFILEPATH" and uses whatever path is there. This variable can be
-      set in the script prior to calling this cmdlet. Alternatively a path to a file may be
-      provided.
-    .Parameter Type
-      The type of event being logged. Valid values are 1, 2 and 3. Each number corresponds to a 
-      message type:
-      1 - Normal messsage (default)
-      2 - Warning message
-      3 - Error message
-  #>
-  [CmdletBinding()]
-  param(
-    [Parameter( Mandatory = $true )]
-    [string] $Message,
-    [string] $Component="",
-    [string] $File="",
-    [string] $Thread="",
-    [string] $Context="",
-    [string] $FilePath=$WRITELOGFILEPATH,
-    [ValidateSet(1,2,3)]
-    [int] $Type=1
-  )
-  
-  begin
-  {
-    $TZBias = (Get-WmiObject -Query "Select Bias from Win32_TimeZone").bias
-  }
-  
-  process
-  {
-    $Time = Get-Date -Format "HH:mm:ss.fff"
-    $Date = Get-Date -Format "MM-dd-yyyy"
-    
-    $Output  = "<![LOG[$($Message)]LOG]!><time=`"$($Time)+$($TZBias)`" date=`"$($Date)`" "
-    $Output += "component=`"$($Component)`" context=`"$($Context)`" type=`"$($Type)`" "
-    $Output += "thread=`"$($Thread)`" file=`"$($File)`">"
-    
-    Write-Verbose "$Time $Date`t$Message"
-    Out-File -InputObject $Output -Append -NoClobber -Encoding Default -FilePath $FilePath
-  }
-}
-New-Alias -name wt -value Write-Trace -Description "Write output in trace32 format" -Force
-
 
 function Get-WifiNetworks {
     #Note try : Get-WifiNetwork | select index, ssid, signal, 'radio type' | sort signal -desc | ft -auto
@@ -657,17 +522,91 @@ function Import-PSCredential {
   }
 New-Alias -Name icred -value Import-PSCredential -Description "Import user credentials" -Force
 
+function Get-LoadedModuleFunctions {
+    param(
+        [Parameter(Mandatory=$false)]
+        [alias("get","list")]
+        [switch] $GetList,
+    
+        [Parameter(Position=0,Mandatory=$false)]
+        [string] $Module = "ALL"
+    )
+
+    #An array to skip certain default functions (I load prompt; MS loads readline)
+    #BUT, we only want to ignore these if we're looking at the "All" (or general) listing
+    $ToIgnore = "prompt", "PSConsoleHostReadline"
+    $ProcessIgnore = $true
+
+    #Pull all the script modules currently loaded
+    $list = get-Module | Where-Object { $_.ModuleType -match "Script" }
+
+    #If we're looking for the list, just give it and exit
+    #This is redundant functionality to get-module, really, but handy to have in the functioin
+    if ($GetList) { $list | ft -AutoSize Name,ModuleType,Version; break }
+
+    #Check if we're looking for somthing specific or all modules
+    #if specific, we want to limit the $list to that object and process ALL functions, even the generally ignored items
+    if ($Module -notmatch "ALL") { $list = $list | Where-Object { $_.Name -eq "$Module" }; $ProcessIgnore = $false }
+
+    #Now, let's process the modules and get their functions!
+    $list | ForEach-Object {
+        #Quick holder for the module name
+        $which = $_.Name
+
+        #Cycle through the functions which exist in the module
+        Get-Command -Type function | Where-Object { $_.Source -match "$which" } | ForEach-Object {
+            #Set the Don'tSkip to true so we don't skip the processing
+            $DontSkip = $True
+            #Now, test if we should test for ignored functionsl
+            #   and if an ignored function is found, we double-negative Don'tSkip is false, so skip is true
+            if ($ProcessIgnore) { if ($ToIgnore -contains $_.Name) { $DontSkip = $false} }
+        
+            #Now, based on whether we skip or not (don'tskip or do???)
+            If ($DontSkip) {
+                #Create the infohash for the object with the info we want
+                $InfoHash =  @{
+                    Alias = $(get-alias -definition $_.Name -ea SilentlyContinue)
+                    Command = $_.Name
+                    Description = $(Get-help $_.Name).Synopsis
+                    Module = $_.Source
+                    HelpURI = $_.HelpUri
+                    Version = $_.Version
+                }
+                $InfoStack = New-Object -TypeName PSObject -Property $InfoHash
+
+                #Add a (hopefully) unique object type name
+                $InfoStack.PSTypeNames.Insert(0,"Cmd.Information")
+
+                #Sets the "default properties" when outputting the variable... but really for setting the order
+                $defaultProperties = @('Command', 'Alias', 'Module', 'Description')
+                $defaultDisplayPropertySet = New-Object System.Management.Automation.PSPropertySet(‘DefaultDisplayPropertySet’,[string[]]$defaultProperties)
+                $PSStandardMembers = [System.Management.Automation.PSMemberInfo[]]@($defaultDisplayPropertySet)
+                $InfoStack | Add-Member MemberSet PSStandardMembers $PSStandardMembers
+
+                #And output
+                $InfoStack
+            }
+        }
+    }
+}
+
+New-Alias -name glmf -Value Get-LoadedModuleFunctions -Description "List functions from loaded modules" -force
+
 Function Get-NewCommands {
     # Displays a list of aliases that have descriptions
     # Each alias in this file is created with descriptions,
     # Hence, this shows the list of aliases in this file
     # (maybe more!)
+    $CommandWidth=25
+    $AliasWidth=12
+
     $retval = Get-Alias | where-object { $_.Description } 
-    $retval += Get-Alias | Where-Object { $_.Source -match "psSysInfo" }
     
     $retval | Sort-Object ResolvedCommandName -unique | `
-        format-table @{Expression={$_.ResolvedCommandName};Label="Command";width=22},@{Expression={$_.Name};Label="Alias";width=12},@{Expression={$_.Description};Label="Description"} | `
-        format-color -simplematch @{ '*' = 'Yellow'}
+        format-table @{Expression={$_.ResolvedCommandName};Label="Command";width=$CommandWidth},@{Expression={$_.Name};Label="Alias";width=$AliasWidth},@{Expression={$_.Description};Label="Description"} 
+
+    Get-LoadedModuleFunctions -Module all | sort command | `
+        format-table @{Expression={$_.Command};Label="Command";width=$CommandWidth},@{Expression={$_.Alias};Label="Alias";width=$AliasWidth}, @{Expression={$_.Module};Label="Module";width=15}, Description 
 }
 
 New-Alias -name snew -value Get-NewCommands -Description "Show this list" -Force
