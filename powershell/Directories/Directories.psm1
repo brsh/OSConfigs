@@ -243,7 +243,14 @@ catch [Exception]{
 }
 
 function Get-DirInfo {
-
+    <# 
+    .SYNOPSIS 
+        Linux-style dir list in C*O*L*O*R
+    .DESCRIPTION 
+        Output a linux-style directory listing - the key piece with this function is file coloring. This version recolors lines based on the type of file. 
+    .EXAMPLE 
+        PS> Get-DirInfo -help 
+    #> 
 param ($Path,
        $Attributes,
        $Order,
@@ -256,7 +263,6 @@ param ($Path,
        [Switch] $DefaultOutput,
        [Switch] $Help,
        [Switch] $Forced)
-
 
 
   # Display the usage message if -help exists.
@@ -308,7 +314,7 @@ param ($Path,
     $pipeline += " -recurse"
   }
 
-  # Add -recurse if requested.
+  # Add -force if requested.
   if ($Forced) {
     $pipeline += " -force"
   }
@@ -346,18 +352,12 @@ param ($Path,
   $back = $Host.UI.RawUI.BackgroundColor
   $hiddenback = 'DarkGray'
 
-  #Wish I knew how to make this work better :(
-  #if ($_.Mode.Contains("h")) {  
-  #      $Host.UI.RawUI.BackgroundColor = 'DarkGray'
-  #} else {
-  #      $Host.UI.RawUI.BackgroundColor = $back
-  #}
 
   # Create the formatted string expression.
-  $formatStr = "`"{0,5} |{1,11} {2,8} |{3,11}"
+  $formatStr = "`"{0,5} |{1,10} {2,9} |{3,11}"
   $formatStr += iif { -not $Q } { " | {4}" } { " | {4,-30}| {5}" }
   $formatStr += "`" -f `$_.Mode.ToString().ToUpper()," +
-    "`$_.$TimeField.ToString('d')," +
+    "`$_.$TimeField.ToString('MM/dd/yy')," +
     "`$_.$TimeField.ToString('t').ToLower()," +
     "`$(if ((`$_.Attributes -band [System.IO.FileAttributes]::Directory) -eq 0) { `$(format-filesize `$_.Length) } )"
   if ($Q) {
@@ -368,7 +368,7 @@ param ($Path,
 # Create the formated header
 $headStr = "`"`n{0,5} {1,21}  {2,11}"
   $headStr += iif { -not $Q } { "  {3}" } { "   {3,-30} {4}" }
-  $headStr += "`" -f 'DARHS'," +
+  $headStr += "`" -f 'DARHSL'," +
     "`$TimeHeader," +
     "'Size   '"
   if ($Q) {
@@ -379,7 +379,7 @@ $headStr = "`"`n{0,5} {1,21}  {2,11}"
 # Create the formated header's line separators
 $lineStr = "`"{0,5}-{1,21}-{2,11}"
   $lineStr += iif { -not $Q } { "--{3}" } { "--{3,-30}-{4}" }
-  $lineStr += "`" -f '-----'," +
+  $lineStr += "`" -f '------'," +
     "'|--------------------'," +
     "'|----------'"
   if ($Q) {
@@ -429,7 +429,7 @@ $lineStr = "`"{0,5}-{1,21}-{2,11}"
       } elseif ($office_files.IsMatch($_.Name)) {
         $Host.UI.RawUI.ForegroundColor = 'Green'
       } elseif ($executable.IsMatch($_.Name)) {
-        $Host.UI.RawUI.ForegroundColor = 'DarkRed'
+        $Host.UI.RawUI.ForegroundColor = 'Red'
       } elseif ($text_files.IsMatch($_.Name)) {
         $Host.UI.RawUI.ForegroundColor = 'Cyan'
       } elseif ($image_files.IsMatch($_.Name)) {
@@ -440,9 +440,10 @@ $lineStr = "`"{0,5}-{1,21}-{2,11}"
         $Host.UI.RawUI.ForegroundColor = 'White'
       }
       #Wish I knew how to make this work better :(
+      #Line goes black, sure, but so does part of the next line :(
       #if ($_.Mode.Contains("h")) {  
-      #      $Host.UI.RawUI.BackgroundColor = 'DarkGray'
-      #} else {
+      #      $Host.UI.RawUI.BackgroundColor = 'Black'
+      #}  else {
       #      $Host.UI.RawUI.BackgroundColor = $back
       #}
 
@@ -490,7 +491,21 @@ $lineStr = "`"{0,5}-{1,21}-{2,11}"
         $fileCount,$(format-filesize $sizeTotal),$dirCount
     }
   }
-
 }
 
-Export-ModuleMember Get-DirInfo
+New-Alias -name ll -value Get-DirInfo -Description "Colorized directory info" -Force
+
+Export-ModuleMember -Function Get-DirInfo
+Export-ModuleMember -Alias ll
+
+
+###################################################
+## END - Cleanup
+ 
+#region Module Cleanup
+$ExecutionContext.SessionState.Module.OnRemove = {
+    # cleanup when unloading module (if any)
+    dir alias: | Where-Object { $_.Source -match "Directories" } | Remove-Item
+    dir function: | Where-Object { $_.Source -match "Directories" } | Remove-Item
+}
+#endregion Module Cleanup

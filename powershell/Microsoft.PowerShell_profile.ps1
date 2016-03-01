@@ -4,6 +4,7 @@ $HistoryText = @'
  Maintenance Log
  Date       By  Updates (important: insert newest updates at top)
  ---------- --- ------------------------------------------------------------------------------
+ 2016/02/29 BDS See the github repo for the change log...
  2016/02/22 BDS Added the call to load the psSysInfo module; adjusted get-ip to not be get-nic
  2016/02/09 BDS Updated battery wmi call and prompt
  2016/01/26 BDS Verify . sourced profile reload and react accordingly
@@ -44,7 +45,7 @@ Set-Variable -name HomeIsLocal -value $True -Scope Global
 
 Try { 
     import-Module Directories -ErrorAction Stop
-    New-Alias -name ll -value Get-DirInfo -Description "Colorized directory info" -Force
+    ##New-Alias -name ll -value Get-DirInfo -Description "Colorized directory info" -Force
     }
 Catch {
     Write-Host "`nDirectories Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
@@ -424,103 +425,6 @@ function Get-WifiNetworks {
 }
 
 New-Alias -name wifi -value Get-WifiNetworks -Description "List available wifi networks" -Force
-
-function Export-PSCredential {
-    param ( 
-        #$Credential = (Get-Credential), 
-        $Credential = "", 
-        $Path = "credentials.enc.xml",
-        [switch]$Help)
-        
-    $HelpInfo = @'
-
-    Function : Export-PSCredential
-    Date     : 02/24/2011 
-    Purpose  : Exports user credentials to an encoded XML file. Resulting file 
-               can be imported using function: Import-PSCredential
-    Usage    : Export-PSCredential [-Credential <[domain\]username>][-Path <filename>][-Help]
-               where      
-                  -Credential specify the user account for which we will create a credential file
-                              password will be collected interactively
-                  -Path       specify the file to which credential information will be written.
-                              if omitted, the file will be "credentials.enc.xml" in the current
-                              working directory.
-                  -Help       displays this help information
-    Note     : Import-PSCredential can be used to decode this file into a PSCredential object and
-               MUST BE executed using the same user account that was used to create the encoded file.
-               
-'@    
-
-    if ($help){
-        write-host $HelpInfo
-        return
-        }
-    $Credential = (Get-Credential $credential)
-    # Look at the object type of the $Credential parameter to determine how to handle it
-    switch ( $Credential.GetType().Name ) {
-        # It is a credential, so continue
-        PSCredential { continue }
-        # It is a string, so use that as the username and prompt for the password
-        String { $Credential = Get-Credential -credential $Credential }
-        # In all other caess, throw an error and exit
-        default { Throw "You must specify a credential object to export to disk." }
-        }
-    # Create temporary object to be serialized to disk
-    $export = "" | Select-Object Username, EncryptedPassword
-    # Give object a type name which can be identified later
-    $export.PSObject.TypeNames.Insert(0,’ExportedPSCredential’)
-    $export.Username = $Credential.Username
-    # Encrypt SecureString password using Data Protection API
-    # Only the current user account can decrypt this cipher
-    $export.EncryptedPassword = $Credential.Password | ConvertFrom-SecureString
-    # Export using the Export-Clixml cmdlet
-    $export | Export-Clixml $Path
-    Write-Host -foregroundcolor Green "Credentials saved to: " -noNewLine
-    # Return FileInfo object referring to saved credentials
-    Get-Item $Path
-  }
-New-Alias -Name ecred -value Export-PSCredential -Description "Export user credentials" -Force
-
-function Import-PSCredential {
-    param ( $Path = "credentials.enc.xml",
-    [switch]$Help)
-        
-    $HelpInfo = @'
-
-    Function : Import-PSCredential
-    Date     : 02/24/2011 
-    Purpose  : Imports user credentials from an encoded XML file. 
-    Usage    : $cred = Import-PSCredential [-Path <filename>][-Help]
-               where   
-                  $cred       will contain a PSCredential object upon successful completion               
-                  -Path       specify the file from which credentials will be read
-                              if omitted, the file will be "credentials.enc.xml" in the current
-                              working directory.
-                  -Help       displays this help information
-    Note     : Credentials can only be decoded by the same user account that was used to 
-               create the encoded XML file
-               
-'@    
-
-    if ($help){
-        write-host $HelpInfo
-        return
-        }
-
-    # Import credential file
-        $import = Import-Clixml $Path
-        # Test for valid import
-        if ( !$import.UserName -or !$import.EncryptedPassword ) {
-            Throw "Input is not a valid ExportedPSCredential object, exiting."
-          }
-        $Username = $import.Username
-        # Decrypt the password and store as a SecureString object for safekeeping
-        $SecurePass = $import.EncryptedPassword | ConvertTo-SecureString
-        # Build the new credential object
-        $Credential = New-Object System.Management.Automation.PSCredential $Username, $SecurePass
-        Write-Output $Credential
-  }
-New-Alias -Name icred -value Import-PSCredential -Description "Import user credentials" -Force
 
 function Get-LoadedModuleFunctions {
     param(
