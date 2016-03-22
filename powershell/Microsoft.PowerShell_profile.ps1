@@ -44,82 +44,34 @@ Set-Variable -name HomeIsLocal -value $True -Scope Global
 ##################### Modules ##########################
 
 Try { 
-    import-Module Directories -ErrorAction Stop
-    ##New-Alias -name ll -value Get-DirInfo -Description "Colorized directory info" -Force
+    import-Module Directories -ErrorAction Stop -Force
     }
 Catch {
     Write-Host "`nDirectories Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
     }
 
 Try { 
-    import-Module psSysInfo -ErrorAction Stop
+    import-Module psSysInfo -ErrorAction Stop -Force
     }
 Catch {
     Write-Host "`npsSysInfo Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
     }
 
 Try { 
-    import-Module psOutput -ErrorAction Stop
+    import-Module psOutput -ErrorAction Stop -Force
     }
 Catch {
     Write-Host "`npsOutput Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
     }
 
 Try { 
-    import-Module psPrompt -ErrorAction Stop
+    import-Module psPrompt -ErrorAction Stop -Force
     }
 Catch {
     Write-Host "`npsPrompt Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
     }
 
 ################### Functions #########################
-
-      ############# Converts ###############
-
-function ConvertFrom-SID
- {
-  param([string]$SID="S-1-0-0")
-  $objSID = New-Object System.Security.Principal.SecurityIdentifier($SID)
-  $objUser = $objSID.Translate([System.Security.Principal.NTAccount])
-  Return $objUser.Value
- }
-
- function ConvertTo-SID
- {
-  param([string]$ID="Null SID")
-  $objID = New-Object System.Security.Principal.NTAccount($ID)
-  $objSID = $objID.Translate([System.Security.Principal.SecurityIdentifier])
-  Return $objSID.Value
- }
-
-new-alias -name FromSID -value ConvertFrom-SID -Description "Get UserName from SID" -Force
-new-alias -name ToSID -value ConvertTo-SID -Description "Get SID from UserName" -Force
-
-Function ConvertTo-URLEncode([string]$InText="You did not enter any text!") {
-    [System.Reflection.Assembly]::LoadWithPartialName("System.web") | out-null
-    [System.Web.HttpUtility]::UrlEncode($InText)
-}
-
-Function ConvertFrom-URLEncode([string]$InText="You+did+not+enter+any+text!") {
-    [System.Reflection.Assembly]::LoadWithPartialName("System.web") | out-null
-    [System.Web.HttpUtility]::UrlDecode($InText)
-}
-
-New-Alias -name "URLEncode" -Value ConvertTo-URLEncode -Description "URL encode a string" -Force
-New-Alias -name "URLDecode" -Value ConvertFrom-URLEncode -Description "URL decode a string" -Force
-
-Function ConvertTo-Fahrenheit([decimal]$celsius) {
-    $((1.8 * $celsius) + 32 )
-} 
-
-Function ConvertTo-Celsius($fahrenheit) {
-    $( (($fahrenheit - 32)/9)*5 )
-}
-
-New-Alias -name "ToF" -Value ConvertTo-Fahrenheit -Description "Convert degrees C to F" -Force
-New-Alias -name "ToC" -Value ConvertTo-Celsius -Description "Convert degrees F to C" -Force
-
-
 
       #############   Info   ###############
 
@@ -347,19 +299,6 @@ Param
   return $TempFilePath
 }
 New-Alias -Name ntf -value New-TimestampedFile -Description "Create a new file w/timestamped filename" -Force
-
-      #############    Get   ###############
-
-Function Get-AddressToName($addr) {
-    [system.net.dns]::GetHostByAddress($addr)
-}
-
-Function Get-NameToAddress($addr) {
-    [system.net.dns]::GetHostByName($addr)
-}
-
-New-Alias -name "n2a" -value Get-NameToAddress -Description "Get IP Address from DNS by Host Name" -Force
-New-Alias -name "a2n" -value Get-AddressToName -Description "Get Host Name from DNS by IP Address" -Force
 
 
       ######################################
