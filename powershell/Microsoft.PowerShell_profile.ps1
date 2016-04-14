@@ -1,20 +1,5 @@
 ﻿#goes in C:\Windows\System32\WindowsPowerShell\v1.0 (for all users on current machine)
 #C:\WINDOWS\System32\WindowsPowerShell\v1.0\Microsoft.PowerShell_profile.ps1
-$HistoryText = @'
- Maintenance Log
- Date       By  Updates (important: insert newest updates at top)
- ---------- --- ------------------------------------------------------------------------------
- 2016/02/29 BDS See the github repo for the change log...
- 2016/02/22 BDS Added the call to load the psSysInfo module; adjusted get-ip to not be get-nic
- 2016/02/09 BDS Updated battery wmi call and prompt
- 2016/01/26 BDS Verify . sourced profile reload and react accordingly
-                ModDirs
- 2016/01/25 BDS Reload profile!! Fixed battery display and added IP on prompt
- 2016/01/15 BDS Updated, more cleaning, made snew dynamic, redid Prog aliases, more...
- 2014/09/16 BDS Updated, cleaned up (adjusted ll, lla, added import of Directories module)
- 2012/10/26 BDS Created (ok, assembled)
- ---------- ---- ------------------------------------------------------------------------------
-'@
 
 ###################### Declarations #####################
 
@@ -38,40 +23,117 @@ if(!$global:WindowTitlePrefix) {
     }
  }
 
-Set-Variable -name HomeIsLocal -value $True -Scope Global
 
-
-##################### Modules ##########################
-
-Try { 
-    import-Module Directories -ErrorAction Stop -Force
-    }
-Catch {
-    Write-Host "`nDirectories Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
-    }
-
-Try { 
-    import-Module psSysInfo -ErrorAction Stop -Force
-    }
-Catch {
-    Write-Host "`npsSysInfo Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
-    }
-
-Try { 
-    import-Module psOutput -ErrorAction Stop -Force
-    }
-Catch {
-    Write-Host "`npsOutput Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
-    }
-
-Try { 
-    import-Module psPrompt -ErrorAction Stop -Force
-    }
-Catch {
-    Write-Host "`npsPrompt Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
-    }
 
 ################### Functions #########################
+
+
+   ################## Inits ######################
+
+function Import-MyModules {
+    param (
+        [Parameter(Position=0, Mandatory=$true)]
+        [String] $Name
+    )
+    try {
+        Import-Module $Name -ea stop -Force
+    }
+    Catch {
+        Write-Host "`n$($Name) Module not found. Use Show-ModuleDirs to check existence.`n" -ForegroundColor Red
+    }
+}
+
+function New-ProfilePSDrive {
+    param (
+        [Parameter(Position=0, Mandatory=$true)]
+        [String] $Name,
+        [Parameter(Position=1, Mandatory=$true)]
+        [String] $Location 
+    )
+    $ReturnTo = $false
+    #Check if the drive already exists (can't create it if it does)
+    if ($(Get-PSDrive -name $Name -ea SilentlyContinue ) -ne $null) { 
+        #Check if we're currently pwd'd to it or a subfolder (we'll want to leave and return to it)
+        if ($pwd.Path -match "$($Name):") {
+            #Temporarily move to the un-PSDrive'd location
+            Set-Location $($pwd.path.Replace("$($Name):", (Get-PSDrive $Name).Root))
+            $ReturnTo = $true
+        }
+        Remove-PSDrive -Name $Name
+        
+    }
+    $null = New-PSDrive -Name $Name -PSProvider FileSystem -Root $Location -Scope Global # -ea SilentlyContinue
+    if ($ReturnTo) { 
+        #Return to the PSDrive'd version
+        $null = Set-Location $($pwd.path.Replace((Get-PSDrive $Name).Root, "$($Name):"))
+    }
+}
+
+function GoHome {
+    <# 
+    .SYNOPSIS 
+        Set "home" scripts directory 
+ 
+    .DESCRIPTION 
+        Sets and/or moves to my working Scripts folder - either personal or shared - as a PSDrive called "Scripts:". Assumes personal is under the current user's profile ("My Documents\Scripts") and shared is under the root of the main hard drive ("C:\Scripts").
+
+        This function will create the folder, if necessary - but it asks first.
+
+        The switch parameter allows switching between personal and shared, so that the Scripts PSDrive "root" is always where I'm working that session. Defaults to local.
+ 
+    .PARAMETER  Switch
+        Switches between personal and shared
+
+    .EXAMPLE 
+        PS C:\> gohome
+
+        Essentially "cd ~\Scripts" where ~ is either the user's home folder or the root of "C:"
+         
+    .EXAMPLE 
+        PS C:\> gohome -switch
+
+        Switches the Scripts PSDrive to the other location (if currently personal, switches to shared; if shared, switches to personal
+    #> 
+    [CmdletBinding()]
+    param( 
+        [Parameter(Mandatory=$False)]
+        [switch]$Switch = $false
+    )
+
+    $local = "$($env:USERPROFILE)\Documents\Scripts"
+    $global = "$($env:SystemDrive)\Scripts"
+
+    # first test if the Scripts PSDrive exists
+    if (Test-Path scripts:) {
+        $myScriptsDir = $(get-psdrive Scripts).Root
+        #Test is Switch is set
+        if ( $Switch ) {
+            #And switch
+            if ($myScriptsDir -eq $local) {
+                $myScriptsDir = $global
+            } 
+            else {
+                $myScriptsDir = $local
+            }
+        }
+    }
+    else {
+        #It's new - default to local
+        $myScriptsDir = $local
+    }
+
+    #Test for it and create it if necessary
+    if (!(test-path $myScriptsDir)) {
+        Write-Host "Creating default scripts directory ($myScriptsDir)" -back black -fore green
+        New-Item -Path $myScriptsDir -Type directory -Confirm
+    }
+    Write-Verbose  "Scripts: is $($myScriptsDir)"
+    New-ProfilePSDrive -Name Scripts -Location $myScriptsDir
+    Set-Location Scripts:\
+}
+
+New-Alias -name "cd~" -value GoHome -Description "Return to home directory" -Force
+
 
       #############   Info   ###############
 
@@ -639,35 +701,31 @@ Function Set-ProgramAliases {
     }
 }
 
-function GoHome {
-###[CmdletBinding( SupportsShouldProcess=$true, ConfirmImpact='High')]
-    param( 
-        [Parameter(Mandatory=$False,Position=1)]
-        [switch]$Local = $HomeIsLocal 
-        )
-
-        Set-Variable -name HomeIsLocal -value $Local -Scope Global
-
-
-    if ( $HomeIsLocal ) {
-        $myScriptsDir = "$($env:USERPROFILE)\Documents\Scripts"
-    }
-    else {
-        $myScriptsDir = "$($env:SystemDrive)\Scripts"
-    }
-
-    if (!(test-path $myScriptsDir)){
-        write-host "creating default scripts directory ($myScriptsDir)" -back black -fore green
-        new-item -path $myScriptsDir -type directory -Confirm
-   	}
-    Set-Location $myScriptsDir | out-null
-
-}
-
-New-Alias -name "cd~" -value GoHome -Description "Return to home directory (-Local)" -Force
 
 #####################  Actual Work  #####################
 
+#Modules
+Import-MyModules Directories
+Import-MyModules psSysInfo
+Import-MyModules psOutput
+Import-MyModules psPrompt
+
+#PSDrives
+New-ProfilePSDrive -name Profile -Location $env:USERPROFILE
+New-ProfilePSDrive -name Documents -Location $env:USERPROFILE\Documents
+New-ProfilePSDrive -name Downloads -Location $env:USERPROFILE\Downloads
+New-ProfilePSDrive -name GitHub -Location $env:USERPROFILE\Documents\GitHub
+New-ProfilePSDrive -name PSHome -Location $PSHome
+
+#(re)Load any Tool-related scripts, modules, components, etc.
+## Git
+if (Test-Path $env:LOCALAPPDATA\GitHub\shell.ps1) { 
+    . (Resolve-Path "$env:LOCALAPPDATA\GitHub\shell.ps1") 
+    if (Test-Path $env:github_posh_git\posh-git.psm1) { Import-MyModules $env:github_posh_git\posh-git }
+}
+
+
+#Only do these next items the first time (initial load)...
 if (!($isDotSourced)) { 
     #ShowHeader
     Get-NewCommands
@@ -677,3 +735,4 @@ if (!($isDotSourced)) {
 
     GoHome
 }
+
