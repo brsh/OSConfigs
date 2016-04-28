@@ -117,10 +117,10 @@ function GetNetwork {
 			# We prefer IP
 			IP=$(which ip 2> /dev/null)
 			if [[ ${IP} && ${IP-x} ]]; then
-				IP=$(ip addr show | grep global | awk '{print $2}' | cut -d / -f1)
+				IP=$(ip addr show 2> /dev/null | grep global | awk '{print $2}' | cut -d / -f1)
 			else
 				# but will fall back to ifconfig if needed...
-				IP=$(trim $(ifconfig | grep "inet " | grep broadcast) | cut -d " " -f2)
+				IP=$(trim $(ifconfig 2> /dev/null | grep "inet " | grep broadcast) | cut -d " " -f2)
 			fi
 		;;
 		Windows* )
