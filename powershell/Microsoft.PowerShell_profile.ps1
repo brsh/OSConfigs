@@ -48,7 +48,9 @@ function New-ProfilePSDrive {
         [Parameter(Position=0, Mandatory=$true)]
         [String] $Name,
         [Parameter(Position=1, Mandatory=$true)]
-        [String] $Location 
+        [String] $Location,
+        [Parameter(Position=2, Mandatory=$false)]
+        [String] $Description = ""
     )
     $ReturnTo = $false
     #Check if the drive already exists (can't create it if it does)
@@ -62,12 +64,19 @@ function New-ProfilePSDrive {
         Remove-PSDrive -Name $Name
         
     }
-    $null = New-PSDrive -Name $Name -PSProvider FileSystem -Root $Location -Scope Global # -ea SilentlyContinue
+    if ($Description.Length -gt 0) { $Description = "PROF: $($Description)" }
+    $null = New-PSDrive -Name $Name -PSProvider FileSystem -Root $Location -Scope Global -ea SilentlyContinue -Description $Description
     if ($ReturnTo) { 
         #Return to the PSDrive'd version
         $null = Set-Location $($pwd.path.Replace((Get-PSDrive $Name).Root, "$($Name):"))
     }
 }
+
+function Get-ProfilePSDrive {
+    Get-PSDrive | Where-Object { $_.Description -match "PROF:"} | ft Name, Root, Description
+}
+
+New-Alias -Name PfDrive -Value Get-ProfilePSDrive -Description "Drives created by PS Profile" -Force
 
 function GoHome {
     <# 
@@ -128,7 +137,7 @@ function GoHome {
         New-Item -Path $myScriptsDir -Type directory -Confirm
     }
     Write-Verbose  "Scripts: is $($myScriptsDir)"
-    New-ProfilePSDrive -Name Scripts -Location $myScriptsDir
+    New-ProfilePSDrive -Name Scripts -Location $myScriptsDir -Description "Default working directory for Scripts"
     Set-Location Scripts:\
 }
 
@@ -686,17 +695,25 @@ Function Set-ProgramAliases {
         #Now, if amything was found, test if the alias exists
         #Create it if it doesn't
         ForEach ($file in $found) {
-            if (!(test-path Alias:\$name)){
-                set-alias -name $name -value $file.Fullname -Description $file.ProductName -scope Global
-            }
-            #Otherwise, (alias exists) create a new alias with the product version 
-            else {
-                $name += $file.Version.split(".")[0].trim()
-                #But only 1 for each additional major version (so 14.533 and 14.255 will only create 1 alias)
-                if (!(test-path Alias:\$name)){
+            #We have some redundant copies in an Updates folder causing problems... this ignores them
+            if (-not $file.Fullname.Contains("Updates")) {
+                if (!(test-path Alias:\$name)) {
                     set-alias -name $name -value $file.Fullname -Description $file.ProductName -scope Global
                 }
-            }
+                #Otherwise, (alias exists) create a new alias with the product version 
+                else {
+                    try {
+                        $name += $file.Version.split(".")[0].trim()
+                        #But only 1 for each additional major version (so 14.533 and 14.255 will only create 1 alias)
+                        if (!(test-path Alias:\$name)){
+                            set-alias -name $name -value $file.Fullname -Description $file.ProductName -scope Global
+                        }
+                    } 
+                    Catch { 
+                        #Nothing to do here...
+                    }
+                }
+             }
         }
     }
 }
@@ -711,28 +728,29 @@ Import-MyModules psOutput
 Import-MyModules psPrompt
 
 #PSDrives
-New-ProfilePSDrive -name Profile -Location $env:USERPROFILE
-New-ProfilePSDrive -name Documents -Location $env:USERPROFILE\Documents
-New-ProfilePSDrive -name Downloads -Location $env:USERPROFILE\Downloads
-New-ProfilePSDrive -name GitHub -Location $env:USERPROFILE\Documents\GitHub
-New-ProfilePSDrive -name PSHome -Location $PSHome
+New-ProfilePSDrive -name Profile -Location $env:USERPROFILE -Description "Home Directory"
+New-ProfilePSDrive -name Documents -Location $env:USERPROFILE\Documents -Description "User Documents folder"
+New-ProfilePSDrive -name Downloads -Location $env:USERPROFILE\Downloads -Description "User Downloads folder"
+New-ProfilePSDrive -name GitHub -Location $env:USERPROFILE\Documents\GitHub -Description "Git master directories"
+New-ProfilePSDrive -name PSHome -Location $PSHome -Description "Powershell program folder"
 
 #(re)Load any Tool-related scripts, modules, components, etc.
 ## Git
 if (Test-Path $env:LOCALAPPDATA\GitHub\shell.ps1) { 
     . (Resolve-Path "$env:LOCALAPPDATA\GitHub\shell.ps1") 
+    New-ProfilePSDrive -name GitHome -Location $env:LOCALAPPDATA\GitHub -Description "Git program and source files"
     if (Test-Path $env:github_posh_git\posh-git.psm1) { Import-MyModules $env:github_posh_git\posh-git }
 }
 
 
 #Only do these next items the first time (initial load)...
 if (!($isDotSourced)) { 
+    #Create the "standard" aliases for programs
+    Set-ProgramAliases
+    
     #ShowHeader
     Get-NewCommands
     
-    #Create the "standard" aliases for programs
-    Set-ProgramAliases
-
     GoHome
 }
 
