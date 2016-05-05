@@ -544,7 +544,8 @@ function Get-LoadedModuleFunctions {
 
     #An array to skip certain default functions (I load prompt; MS loads readline)
     #BUT, we only want to ignore these if we're looking at the "All" (or general) listing
-    $ToIgnore = "prompt", "PSConsoleHostReadline"
+    #$ToIgnore = "prompt", "PSConsoleHostReadline"
+    $ToIgnore = $Global:SnewToIgnore
     $ProcessIgnore = $true
 
     #Pull all the script modules currently loaded
@@ -565,14 +566,18 @@ function Get-LoadedModuleFunctions {
 
         #Cycle through the functions which exist in the module
         Get-Command -Type function | Where-Object { $_.Source -match "$which" } | ForEach-Object {
-            #Set the Don'tSkip to true so we don't skip the processing
-            $DontSkip = $True
-            #Now, test if we should test for ignored functionsl
-            #   and if an ignored function is found, we double-negative Don'tSkip is false, so skip is true
-            if ($ProcessIgnore) { if ($ToIgnore -contains $_.Name) { $DontSkip = $false} }
+            #Set the Skip to false so we don't skip the processing
+            $Skip = $false
+            #Now, test if we should test for ignored functions or modules
+            #and set Skip as appropriate
+            if ($ProcessIgnore) { 
+                #if ($ToIgnore -contains $_.Name) { $Skip = $True} 
+                if ($ToIgnore.Contains($_.Name)) { $Skip = $True} 
+                if ($ToIgnore.Contains($_.Source)) { $Skip = $True} 
+            }
         
-            #Now, based on whether we skip or not (don'tskip or do???)
-            If ($DontSkip) {
+            #Now, based on whether we skip or not
+            If (-not $Skip) {
                 #Create the infohash for the object with the info we want
                 $InfoHash =  @{
                     Alias = $(get-alias -definition $_.Name -ea SilentlyContinue)
@@ -749,6 +754,7 @@ if (!($isDotSourced)) {
     Set-ProgramAliases
     
     #ShowHeader
+    $Global:SnewToIgnore = "prompt", "PSConsoleHostReadline", "posh-git"
     Get-NewCommands
     
     GoHome
