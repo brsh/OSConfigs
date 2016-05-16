@@ -739,6 +739,10 @@ New-ProfilePSDrive -name Downloads -Location $env:USERPROFILE\Downloads -Descrip
 New-ProfilePSDrive -name GitHub -Location $env:USERPROFILE\Documents\GitHub -Description "Git master directories"
 New-ProfilePSDrive -name PSHome -Location $PSHome -Description "Powershell program folder"
 
+if (Get-Service VMTools -ea SilentlyContinue) {
+    New-ProfilePSDrive -name VMHost -Location "\\vmware-host\Shared Folders\$env:username\scripts" -Description "VMHost scripts"
+}
+
 #(re)Load any Tool-related scripts, modules, components, etc.
 ## Git
 if (Test-Path $env:LOCALAPPDATA\GitHub\shell.ps1) { 
