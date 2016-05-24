@@ -726,6 +726,9 @@ Function Set-ProgramAliases {
 
 #####################  Actual Work  #####################
 
+#(Attempt to) Keep duplicates out of History
+Set-PSReadLineOption –HistoryNoDuplicates:$True
+
 #Modules
 Import-MyModules Directories
 Import-MyModules psSysInfo
