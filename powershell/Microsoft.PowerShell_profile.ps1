@@ -23,8 +23,6 @@ if(!$global:WindowTitlePrefix) {
     }
  }
 
-
-
 ################### Functions #########################
 
 
@@ -168,7 +166,7 @@ New-Alias -name Profs -value Get-Profiles -Description "List PowerShell profile 
 
 function Read-Profiles {
 #Reload all profiles - helpful when editing/testing profiles
-Set-Variable -name isDotSourced -value $False -Scope Global
+Set-Variable -name isDotSourced -value $False -Scope 0
 $isDotSourced = $MyInvocation.InvocationName -eq '.' -or $MyInvocation.Line -eq ''
 if (!($isDotSourced)) { write-host "You must dot source this function" -fore Red; write-host "`t. Load-Profiles`n`t. re-Profs" -ForegroundColor "Yellow"; return "" }
     @(
@@ -746,12 +744,10 @@ if (Get-Service VMTools -ea SilentlyContinue) {
     New-ProfilePSDrive -name VMHost -Location "\\vmware-host\Shared Folders\$env:username\scripts" -Description "VMHost scripts"
 }
 
-#(re)Load any Tool-related scripts, modules, components, etc.
 ## Git
 if (Test-Path $env:LOCALAPPDATA\GitHub\shell.ps1) { 
     . (Resolve-Path "$env:LOCALAPPDATA\GitHub\shell.ps1") 
     New-ProfilePSDrive -name GitHome -Location $env:LOCALAPPDATA\GitHub -Description "Git program and source files"
-    if (Test-Path $env:github_posh_git\posh-git.psm1) { Import-MyModules $env:github_posh_git\posh-git }
 }
 
 
@@ -765,5 +761,9 @@ if (!($isDotSourced)) {
     Get-NewCommands
     
     GoHome
+}
+else { 
+    #I hate littering the field with random variables
+    remove-item variable:\isDotSourced 
 }
 
