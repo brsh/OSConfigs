@@ -1,10 +1,10 @@
-This contains some of my powershell init stuff, including my profile and my offshoot of a colorful dir lister (similar to `ls --color:auto` in linux).
+This contains my powershell init stuff, including my offshoot of a colorful dir lister (similar to `ls --color:auto` in linux).
 
 #### PowerShell Profile 
 
 Containing what I consider to be handy scripts and loading my "preferred" modules and settings. For example, it sets up my PSDrives, checks if I'm running "as admin", and sets up aliases to the microsoft office apps (for easy start up).
 
-*Note: PowerShell x86 and x64 store these files in different locs. These are for x64*
+*Note: PowerShell x86 and x64 store these files in different locs. This is for x64*
 ```
 C:\Windows\System32\WindowsPowerShell\v1.0\Microsoft.PowerShell_profile.ps1
 ```
@@ -46,9 +46,9 @@ Machine-specific:	C:\Windows\System32\WindowsPowerShell\v1.0\Modules
 User-specific:		C:\Users\username\Documents\WindowsPowerShell\Modules
  ```
 
-Commands (without brackets: `import-module {Name}`
+How to "activate": `import-module *Name*`
  
 * Directories
-..* Get-DirInfo     		Power dir for powershell (colors, sorting...); autoimported via profile above
+  * Get-DirInfo     		Power dir for powershell (colors, sorting...); autoimported via profile above
 
 
