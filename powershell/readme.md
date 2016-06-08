@@ -46,7 +46,7 @@ Machine-specific:	C:\Windows\System32\WindowsPowerShell\v1.0\Modules
 User-specific:		C:\Users\username\Documents\WindowsPowerShell\Modules
  ```
 
-How to "activate": `import-module *Name*`
+How to "activate": `import-module NAME`
  
 * Directories
   * Get-DirInfo     		Power dir for powershell (colors, sorting...); autoimported via profile above
