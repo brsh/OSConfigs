@@ -721,7 +721,125 @@ Function Set-ProgramAliases {
     }
 }
 
+function Get-Calendar {
+    <# 
+    .SYNOPSIS 
+        Gets a monthly calendar
+ 
+    .DESCRIPTION 
+        Returns a monthly calendar for the Month and Year specified (defaults to the current month). Similar to the Linux/Unix cal command.
+ 
+    .PARAMETER Month
+        The month (1-12) to return
+
+    .PARAMETER Year
+        The Year (1921 or later) to return
+
+    .EXAMPLE
+        PS C:\> Get-Calendar
+
+        Returns the calendar
+    
+    .EXAMPLE
+        PS C:\> Get-Calendar -month 4
+
+        Returns the calendar for April of the current year
+
+    .EXAMPLE
+        PS C:\> Get-Calendar -month 3 -year 1971
+
+        Returns the calendar for March, 1971
+    #> 
+  param(
+    [Parameter(Mandatory=$false,Position=0,ValueFromPipeline=$true)]
+    [ValidateRange(1,12)]
+    [Int32]$Month = (Get-Date -UFormat %m),
+    
+    [Parameter(Mandatory=$false,Position=1,ValueFromPipeline=$true)]
+    [ValidateScript({$_ -ge 1921})]
+    [Int32]$Year = (Get-Date -UFormat %Y)
+  )
+  
+  begin {
+    $arr = @()
+    $cal = [Globalization.CultureInfo]::CurrentCulture.Calendar
+  }
+
+  process {
+    function GenArray  {
+        param (
+            [int]$Total,
+            [int]$Start = 1,
+            [char]$Character
+        )
+        $retval = @()
+        $Start..$Total | ForEach-Object {
+            if ($Character) {
+                $retval += [String](($Character.ToString().PadLeft(2)))
+            }
+            else {
+                $retval += [String](($_.ToString().PadLeft(2)))
+            }
+        }
+        $retval
+    }
+    function WriteHead{
+        $Days = 0..6 | ForEach-Object { ([Globalization.DatetimeFormatInfo]::CurrentInfo.AbbreviatedDayNames[$_]).ToString().SubString(0, 2) }
+        Write-Host $Days[0..6]
+    }
+
+    $FirstDayOfMonth = [Int32]$cal.GetDayOfWeek([DateTime]([String]$Month + ".1." + [String]$Year))
+    if ($FirstDayOfMonth -ne 0) {
+        #Month starts on a day other than Sunday
+        #Fill in some spaces...
+        $Hold = 7 # - $FirstDayOfMonth
+        $arr += GenArray -Start (7 - $FirstDayOfMonth + 1) -Total $Hold -Character " "
+    }
+        
+    $LastMonth = $arr.Length
+    $arr += GenArray $cal.GetDaysInMonth($Year, $Month)
+
+    #And the start of the next next month
+    $NextNextMonthStart = $arr.Length
+    if ([Bool]($NextNextMonthStart % 7)) {
+        $Year = (get-date).AddMonths(1).ToString("yyyy")
+        $Month = (get-date).AddMonths(1).ToString("MM")
+        $arr += GenArray (7 - ($NextNextMonthStart % 7)) -Character " "
+    }
+  }
+  end {
+    $SubCount = 0
+    WriteHead
+    for ($i = 0; $i -lt $arr.Length; $i+=1) {
+        $subcount += 1
+        
+        #Now actually output the Date Number
+        Write-host $arr[$i] -NoNewline
+        Write-Host " " -NoNewline
+        #And end the line if we're at the end of a week
+        if ($SubCount -eq 7) {
+            $SubCount = 0
+            write-host ""
+        }
+    }
+  }
+}
+
+set-alias -name cal -value Get-Calendar -Description "Show current month calendar" -Force
+
 function Get-CurrentCalendar {
+    <# 
+    .SYNOPSIS 
+        Get the previous, current, and next month
+ 
+    .DESCRIPTION 
+        Outputs a month calendar of the last, current, and next month with today's date highlighted.
+ 
+    .EXAMPLE
+        PS C:\> Get-CurrentCalendar
+
+        Returns the calendar
+    #> 
     function GenArray  {
         param (
             [int]$End,
@@ -734,7 +852,8 @@ function Get-CurrentCalendar {
         $retval
     }
     function WriteHead {
-        Write-Host "Su Mo Tu We Th Fr Sa" -ForegroundColor Green -BackgroundColor Black
+        $Days = 0..6 | ForEach-Object { ([Globalization.DatetimeFormatInfo]::CurrentInfo.AbbreviatedDayNames[$_]).ToString().SubString(0, 2) }
+        Write-Host $Days[0..6] -ForegroundColor Green -BackgroundColor Black
     }
     
     $arr = @()
