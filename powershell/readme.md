@@ -16,6 +16,7 @@ Command                   | Alias       | Description
 Find-Commands             | which       | Lists/finds commands with specified text
 Find-Files                | find        | Search multiple folders for files
 Find-InTextFile           | grep        | Grep with GSAR abilities
+Get-CurrentCalendar       | curcal      | Show previous, current, and next months
 Get-LoadedModuleFunctions | glmf        | List functions from loaded modules
 Get-ModuleDirs            | moddirs     | List the module directories
 Get-NewCommands           | snew        | Show this list
