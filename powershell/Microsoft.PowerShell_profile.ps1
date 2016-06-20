@@ -914,6 +914,7 @@ function Get-CurrentCalendar {
     
     #Put it all together for output with color
     $SubCount = 0
+    write-host "" (get-date -u "%a - %b %d, %Y")
     WriteHead
     for ($i = 0; $i -lt $arr.Length; $i+=1) {
         $subcount += 1
