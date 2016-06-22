@@ -23,6 +23,14 @@ if(!$global:WindowTitlePrefix) {
     }
  }
 
+ if ($PSVersionTable.PSVersion -ge '3.0') {
+    #OMG! The Best (accidental) Discovery I've Ever Made!
+    #Why is AutoSize not True by default?!!??!
+    $PSDefaultParameterValues=@{
+        'Format-Table:AutoSize'=$true;
+    }
+ }
+
 ################### Functions #########################
 
 
