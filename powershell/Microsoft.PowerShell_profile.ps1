@@ -26,10 +26,8 @@ if(!$global:WindowTitlePrefix) {
  if ($PSVersionTable.PSVersion -ge '3.0') {
     #OMG! The Best (accidental) Discovery I've Ever Made!
     #Why is AutoSize not True by default?!!??!
-    $PSDefaultParameterValues=@{
-        'Format-Table:AutoSize'=$true;
-    }
- }
+    $PSDefaultParameterValues.Add("Format-Table:AutoSize", {if ($host.Name -eq 'ConsoleHost'){$true}})
+
 
 ################### Functions #########################
 
@@ -744,7 +742,8 @@ Function Set-ProgramAliases {
     $PgmList = (
         "word | winword.exe | c:\progra*\micro*office*",
         "excel | excel.exe | c:\progra*\micro*office*",
-        "primal | PrimalScript.exe | c:\progra*\sapien*"
+        "primal | PrimalScript.exe | c:\progra*\sapien*",
+        "sublime | sublime_text.exe | c:\progra*\Sublime*"
     )
 
     #Now, cycle through each item and search for the correct path(s)
