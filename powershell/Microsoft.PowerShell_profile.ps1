@@ -23,16 +23,19 @@ if(!$global:WindowTitlePrefix) {
     }
  }
 
- if ($PSVersionTable.PSVersion -ge '3.0') {
-    #OMG! The Best (accidental) Discovery I've Ever Made!
-    #Why is AutoSize not True by default?!!??!
-    $PSDefaultParameterValues.Add("Format-Table:AutoSize", {if ($host.Name -eq 'ConsoleHost'){$true}})
-
-
 ################### Functions #########################
 
 
    ################## Inits ######################
+
+function AddPSDefault([string]$name, $value) {
+    if ($PSVersionTable.PSVersion -ge '3.0') {
+        if ($PSDefaultParameterValues.Contains($name)) {
+            $PSDefaultParameterValues.Remove($name)
+        }
+        $PSDefaultParameterValues.Add($name, $value)
+    }
+}
 
 function Import-MyModules {
     param (
@@ -1024,6 +1027,9 @@ New-ProfilePSDrive -name Documents -Location $env:USERPROFILE\Documents -Descrip
 New-ProfilePSDrive -name Downloads -Location $env:USERPROFILE\Downloads -Description "User Downloads folder"
 New-ProfilePSDrive -name GitHub -Location $env:USERPROFILE\Documents\GitHub -Description "Git master directories"
 New-ProfilePSDrive -name PSHome -Location $PSHome -Description "Powershell program folder"
+
+#Defaults
+AddPSDefault "Format-Table:AutoSize" {if ($host.Name -eq 'ConsoleHost'){$true}}
 
 if (Get-Service VMTools -ea SilentlyContinue) {
     New-ProfilePSDrive -name VMHost -Location "\\vmware-host\Shared Folders\$env:username\scripts" -Description "VMHost scripts"
