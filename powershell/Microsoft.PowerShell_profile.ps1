@@ -667,6 +667,9 @@ Function Get-NewCommands {
     # Each alias in this file is created with descriptions,
     # Hence, this shows the list of aliases in this file
     # (maybe more!)
+	param (
+		[switch] $ModulesToo = $false
+	)
     $CommandWidth=25
     $AliasWidth=12
 
@@ -674,9 +677,10 @@ Function Get-NewCommands {
     
     $retval | Sort-Object ResolvedCommandName -unique | `
         format-table @{Expression={$_.ResolvedCommandName};Label="Command";width=$CommandWidth},@{Expression={$_.Name};Label="Alias";width=$AliasWidth},@{Expression={$_.Description};Label="Description"} 
-
-    Get-LoadedModuleFunctions -Module all | sort command | `
-        format-table @{Expression={$_.Command};Label="Command";width=$CommandWidth},@{Expression={$_.Alias};Label="Alias";width=$AliasWidth}, @{Expression={$_.Module};Label="Module";width=15}, Description 
+	if ($ModulesToo) {
+		Get-LoadedModuleFunctions -Module all | sort command | 
+			format-table @{Expression={$_.Command};Label="Command";width=$CommandWidth},@{Expression={$_.Alias};Label="Alias";width=$AliasWidth}, @{Expression={$_.Module};Label="Module";width=15}, Description 
+	}
 }
 
 New-Alias -name snew -value Get-NewCommands -Description "Show this list" -Force
