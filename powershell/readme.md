@@ -1,3 +1,14 @@
+This has been replaced - it is only still here for historical purposes (and I will retire it eventually).
+
+Please see the lib.ps repository...
+
+-------
+
+DEAD
+
+-------
+
+
 This contains my powershell init stuff, including my offshoot of a colorful dir lister (similar to `ls --color:auto` in linux).
 
 #### PowerShell Profile 
