@@ -5,18 +5,29 @@
 set nowrap
 set autoindent
 set smooth
+set mouse
+set smarthome
+
+#Colors - Not for Macs :(
+set titlecolor brightwhite,blue 
+set statuscolor brightwhite,blue
+set keycolor green,black
+set functioncolor yellow,black
 
 ## Copy the appropriate files into the appropriate location...
-## On Mac, comment "header" (although check on newer versions):
+## Most linux (not Mac) can handle 
+include "/usr/share/nano/*.nanorc
+
+## On Mac, comment "header" in each file (although check on newer versions):
 ## 	for file in /usr/share/nano/*.nanorc; do [[ -f $file ]] && ed -s "$file" <<< $'g/header/s//#header/g\nw\nq'; done
-include "/usr/share/nano/sh.nanorc"
-include "/usr/share/nano/css.nanorc"
-include "/usr/share/nano/html.nanorc"
-include "/usr/share/nano/java.nanorc"
-include "/usr/share/nano/nanorc.nanorc"
-include "/usr/share/nano/perl.nanorc"
-include "/usr/share/nano/php.nanorc"
-include "/usr/share/nano/python.nanorc"
-include "/usr/share/nano/ruby.nanorc"
-include "/usr/share/nano/sh.nanorc"
-include "/usr/share/nano/xml.nanorc"
+#include "/usr/share/nano/sh.nanorc"
+#include "/usr/share/nano/css.nanorc"
+#include "/usr/share/nano/html.nanorc"
+#include "/usr/share/nano/java.nanorc"
+#include "/usr/share/nano/nanorc.nanorc"
+#include "/usr/share/nano/perl.nanorc"
+#include "/usr/share/nano/php.nanorc"
+#include "/usr/share/nano/python.nanorc"
+#include "/usr/share/nano/ruby.nanorc"
+#include "/usr/share/nano/sh.nanorc"
+#include "/usr/share/nano/xml.nanorc"
