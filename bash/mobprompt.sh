@@ -96,7 +96,7 @@ function GetUserColor {
                         retval="${retval}${White}) ${Red}"
 
         elif [[ ${USER} != ${tmpUser} ]]; then
-                retval=${BRed}          # Alert: User is not login user.
+                retval=${Yellow}          # Alert: User is not login user.
         else
                 retval=${Green}         # User is normal (yay!).
         fi
