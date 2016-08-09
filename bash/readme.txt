@@ -10,6 +10,11 @@ bash.bashrc - default bash configuration (incl. prompt - execute as prompt_small
 	Mac
 		For all users: Place in /etc/ as bashrc (so /etc/bashrc)
 	
+	Windows Services for Linux (aka Ubuntu on Windows; aka Bash on Windows)
+		If you've pulled this down in Windows (not in WSL) then do:
+			dos2unix bash.bashrc
+		(you might need to apt-get install dos2unix first)
+	
 	Note: Perms should be at least rrr (or 444)...
 	
 	Alias for editing: nanobash
