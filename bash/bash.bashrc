@@ -18,10 +18,14 @@ case "${BaseOS}" in
 	;;
 	Linux )
 		Distro=$(cat /etc/*-release 2> /dev/null | grep ^NAME= | cut -d = -f2)
+		if [[ -e /mnt/c/Windows/System32/bash.exe ]]; then
+			# Oh my stars and garters! Bash on Windows?!? Crazy!
+			BaseOS="WSL"
+		fi
 	;;
 	CYGWIN* )
-		Distro="Windows"
-		BaseOS="CYGWIN"
+		Distro="CygWin"
+		BaseOS="Windows"
 	;;
 	* )
 		Distro="${BaseOS}"
@@ -39,12 +43,12 @@ shopt -s histappend
 
 # Enable spell-check on directory names
 shopt -s cdspell
-if [ ! "$BaseOS" == "Darwin" ]; then 
+if [ ! "$BaseOS" == "Darwin" ]; then
 	shopt -s dirspell
 fi
 
 # Enable change dir with dir name only (no cd)
-if [ ! "$BaseOS" == "Darwin" ]; then 
+if [ ! "$BaseOS" == "Darwin" ]; then
 	shopt -s autocd
 fi
 
@@ -64,7 +68,7 @@ shopt -s histverify
 export HISTCONTROL=erasedups:ignoreboth
 
 # don't remember the following:
-export HISTIGNORE="&:bg:fg:h:pwd:passwd:history *" 
+export HISTIGNORE="&:bg:fg:h:pwd:passwd:history *"
 
 # for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
 export HISTSIZE=300
@@ -89,7 +93,7 @@ if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
     debian_chroot=$(cat /etc/debian_chroot)
 fi
 
-# Try to enable the auto-completion (type: "pacman -S bash-completion" to install it).
+# Try to enable the auto-completion (type: "install bash-completion" to install it).
 [ -r /usr/share/bash-completion/bash_completion ] && . /usr/share/bash-completion/bash_completion
 
 # Try to enable the "Command not found" hook ("pacman -S pkgfile" to install it).
@@ -213,16 +217,13 @@ do #echo -en "${effect} "
 			SPACER="${FG} "
 		fi
         	printf "${SPACER}\e[$FG${T}"
-#        for BG in 40m 40m 41m 41m 101m 101m 42m 42m 102m 102m 43m 43m 103m 103m 44m 44m 104m 104m 45m 45m 105m 105m 46m 46m 106m 106m 47m 47m 107m 107m;
         for BG in 40m 100m 41m 101m 42m 102m 43m 103m 44m 104m 45m 105m 46m 106m 47m 107m;
                 do printf "\e[$FG\e[${BG}${T}\e[0m";
         done
         printf "\n";
 	done
-#echo;
 done
 printf "           ${HEADER}"
-#echo
 }
 
 function list_colors_256 {
@@ -232,10 +233,10 @@ for fgbg in 38 48 ; do
 	for color in {0..256} ; do
 		printf "\e[${fgbg};5;${color}m ${color}\t\e[0m"
 		if [ $((($color + 1) % 10)) == 0 ] ; then
-			printf "\n" 
+			printf "\n"
 		fi
 	done
-	printf "\n" 
+	printf "\n"
 done
 }
 
@@ -254,7 +255,6 @@ function flag(){
 	fi
 
 	width_head=$(( (${COLUMNS} - ${#message}) / 2 ))
-#	width_tail=$(( ${width_head} + 1 ))
 	width_tail=$(( ${width_head} ))
 
 	if [[ $(((${width_tail} + ${width_head}) + ${#message})) -gt $((${COLUMNS} -1)) ]]; then
@@ -263,7 +263,7 @@ function flag(){
 
 	printf "%b\n" "\n\n ${InvWhite}$(seq -s ' ' $((${COLUMNS} - 1)) | sed 's/[0-9]//g')${Color_Off}"
 
-	printf "%b" " ${InvYellow}$(seq -s ' ' ${width_head} | sed 's/[0-9]//g')" 
+	printf "%b" " ${InvYellow}$(seq -s ' ' ${width_head} | sed 's/[0-9]//g')"
 	printf "%b" "${InvWhite}${message}"
 	printf "%b\n" "${InvYellow}$(seq -s ' ' ${width_tail} | sed 's/[0-9]//g')${Color_Off}"
 
@@ -277,7 +277,8 @@ function center_line {
 }
 
 function boxit() {
-t="$1xxxx";c=${2:-#};
+#t="$1xxxx";c=${2:-#};
+t="$1xxxx";c=${2:-▓};
 	echo "${t//?/$c}
 $c $1 $c
 ${t//?/$c}"
@@ -354,8 +355,6 @@ function tolower() {
     fi
     echo ${@} | tr '[:upper:]' '[:lower:]'
 }
-
-
 
 function to_roman() {
 	echo ${1} | sed -e 's/1...$/M&/;s/2...$/MM&/;s/3...$/MMM&/;s/4...$/MMMM&/
@@ -472,11 +471,9 @@ esac
 ## Basic Stuff ##
 #################
 
-#[[ "$PS1" ]] && echo -e "$IYellow";/usr/bin/fortune -sa;echo -e "$Color_Off"
 # Test for Fortune and run it (games is ubuntu, bin is arch)
 if [[ "$PS1" ]] ; then
         if [[ -x /usr/games/fortune ]]; then
-#                echo -e "\n${Yellow}";/usr/games/fortune -sa;echo -en "$Color_Off"
                 echo -e "\n${Yellow}$(/usr/games/fortune -sa)${Color_Off}"
         elif [[ -x /usr/bin/fortune ]]; then
                 echo -e "\n${Yellow}$(/usr/bin/fortune -sa)${Color_Off}"
@@ -496,7 +493,7 @@ export LESS_TERMCAP_md=$(printf '\e[1;34m')
 export LESS_TERMCAP_us=$(printf '\e[1;32m')
 export LESS_TERMCAP_so=$(printf '\e[1;44;1m')
 
-# Set a MySQL prompt (if MySQL or MariaDBis installed)
+# Set a MySQL prompt (if MySQL or MariaDB is installed)
 if [ $(length "$(which mysql 2> /dev/null)") -gt 0 ]; then
 	export MYSQL_PS1="\nTime : \w  \r:\m\P \nHost : \h:\p\nUser : \U \nDB   : \d\n     > "
 fi
@@ -523,7 +520,6 @@ match_lhs=""
 if [[ $'\n'${match_lhs} == *$'\n'"TERM "${safe_term}* ]] ; then
 
 	# we have colors :-)
-
 	# Enable colors for ls, etc. Prefer ~/.dir_colors
 	if type -P dircolors >/dev/null ; then
 		if [[ -f ~/.dir_colors ]] ; then
@@ -613,7 +609,9 @@ case "${BaseOS}" in
 	;;
 	Linux )
 		alias perm='stat --printf "%a %A %G %U %n\n"'
-		alias gedit='gedit &'
+		if [ $(length "$(which gedit 2> /dev/null)") -gt 0 ]; then
+			alias gedit='gedit &'
+		fi
 	;;
 esac
 
@@ -624,6 +622,9 @@ if [ $UID -ne 0 ]; then
 			alias shutdown='confirm sudo shutdown -t 2 now -h'
 			alias nanobash='sudo nano ${currBashrc} -Y sh'
 		;;
+		WSL )
+			export DISPLAY="localhost:0"
+			alias nanobash='sudo nano ${currBashrc} -Y sh'
 	esac
 
 	case "${Distro}" in
@@ -631,18 +632,15 @@ if [ $UID -ne 0 ]; then
 		MacOS )
 			alias updatedb='sudo /usr/libexec/locate.updatedb'
 		;;
-		Windows* )
+		CygWin* )
 			alias sudo='echo -e "\nSudo is not available in CygWin. Use sudo-s instead."'
 			alias sudo-s='/usr/bin/cygstart --action=runas /usr/bin/mintty -e /usr/bin/bash --login'
-#			unalias reboot
-#			unalias shutdown
 		;;
 		*buntu* | *Mint* | *ingu* | *etrunne* | *lementar* | *Debia*)
 			alias update='sudo apt-get update && sudo apt-get upgrade'
 			alias dist-upgrade='sudo apt-get update && sudo apt-get dist-upgrade'
 			alias install='sudo apt-get install'
 			alias autoremove='sudo apt-get autoremove'
-#			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
 		;;
 		*edora* )
 			alias update='sudo dnf update'
@@ -659,15 +657,11 @@ if [ $UID -ne 0 ]; then
 			alias update='sudo pacman -Syu'
 			alias install='sudo pacman -S'
 			alias yogurt=yaourt
-#			alias nanobash='sudo nano /etc/bash.bashrc --syntax=sh -w'
 			alias update-grub='sudo grub-mkconfig -o /boot/grub/grub.cfg'
 			alias nanogrub='sudo nano /etc/default/grub'
 		function reflect_mirrors() {
 sudo bash -c 'wget -O /etc/pacman.d/mirrorlist.backup https://www.archlinux.org/mirrorlist/all/ && cp /etc/pacman.d/mirrorlist.backup /etc/pacman.d/mirrorlist && reflector --verbose --country "United States" -l 200 -p http --sort rate --save /etc/pacman.d/mirrorlist'
 		}
-
-
-
 		;;
 	esac
 fi
