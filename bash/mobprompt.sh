@@ -67,29 +67,22 @@ fi
 }
 
 function ForceGetUserName {
-	## Modified from a script I found somewhere - read wasn't working right, so cut was simplest
-    thisPID=$$                                                                                                     
-    origUser=$(whoami)                                                                                             
-    thisUser=$origUser                                                                                             
-    while [ $thisPID -gt 1 ]                                                                                       
-    do                                                                                                             
-        temp=$(ps -ax -ouser,ppid,pid,comm | awk -v P=$thisPID ' $3 == P { print $1 "   " $2 "   " $3 "   " $4 }') 
-        thisUser=$(echo $temp | cut -f1 -d" ")                                                                     
-        myPPid=$(echo $temp | cut -f2 -d" ")                                                                       
-        myPid=$(echo $temp | cut -f3 -d" ")                                                                        
-        myComm=$(echo $temp | cut -f4 -d" ")                                                                       
-        thisPID=$myPPid                                                                                            
-    done                                                                                                           
-    if [ "$thisUser" = "root" ]                                                                                    
-    then                                                                                                           
-        thisUser=$origUser                                                                                         
-    fi                                                                                                             
-    if [ "$#" -gt "0" ]                                                                                            
-    then                                                                                                           
-        echo $origUser--$thisUser--$myComm                                                                         
-    else                                                                                                           
-        echo $thisUser                                                                                             
-    fi 
+	## Modified from a script I found somewhere -
+	## The read command shoulda worked... but wouldn't...
+	## So cut was simplest
+    thisPID=$$
+    origUser=$(whoami)
+    thisUser=$origUser
+    while [ "${thisPID}" -gt 1 ]
+    do
+        temp=$(\ps -ax -ouser,ppid,pid,comm | awk -v P=$thisPID ' $3 == P { print $1 "   " $2 "   " $3 "   " $4 }')
+        thisUser=$(echo $temp | cut -f1 -d" ")
+        myPPid=$(echo $temp | cut -f2 -d" ")
+        myPid=$(echo $temp | cut -f3 -d" ")
+        myComm=$(echo $temp | cut -f4 -d" ")
+        thisPID=$myPPid
+    done
+    echo "${thisUser}"
 }
 
 function GetUserColor {
@@ -103,19 +96,15 @@ function GetUserColor {
 #       This means the username and sudo/su info is ... less certain.
 ###################
         local tmpUser=$(logname 2>/dev/null)
-        ##if [[ ! ${tmpUser} && ${tmpUser-x} ]]; then
-        ##	tmpUser=ForceGetUserName
-        ##fi
+        if [[ ! (${tmpUser} && ${tmpUser-x}) ]]; then
+		tmpUser=$(ForceGetUserName)
+        fi
         local retval=${Yellow}  # Default to caution... we just don't know who you are
         if [[ ${USER} == "root" ]] || [[ ${UID} -eq 0 ]] || [[ -w /cygdrive/c/Windows ]]; then
                 retval="${White}(${Green}" # User is root
                 if [[ ${SUDO_USER} && ${SUDO_USER-x} ]]; then
-                        if [[ ${tmpUser} && ${tmpUser-x} ]]; then
-                                retval="${retval}${tmpUser} "
-                        else 
-                                retval="${retval}${SUDO_USER} "
-                        fi
-                        retval="${retval}${White}sudo'd as"
+                        retval="${retval}${SUDO_USER} "
+			retval="${retval}${White}sudo'd as"
                 else
                         if [[ ${tmpUser} && ${tmpUser-x} ]]; then
                                 retval="${retval}${tmpUser} "
@@ -124,8 +113,8 @@ function GetUserColor {
                 fi
                         retval="${retval}${White}) ${Red}"
 
-        elif [[ ${USER} != ${tmpUser} ]]; then
-                retval=${Yellow}          # Alert: User is not login user.
+        elif [[ "${USER}" != "${tmpUser}" ]]; then
+                retval="${Yellow}"        # Alert: User is not login user.
         else
                 retval=${Green}         # User is normal (yay!).
         fi
