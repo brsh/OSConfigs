@@ -623,7 +623,8 @@ if [ $UID -ne 0 ]; then
 			alias nanobash='sudo nano ${currBashrc} -Y sh'
 		;;
 		WSL )
-			export DISPLAY="localhost:0"
+			export DISPLAY="localhost:0.0"
+			export NO_AT_BRIDGE=1
 			alias nanobash='sudo nano ${currBashrc} -Y sh'
 	esac
 
