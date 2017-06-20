@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <key name="Software">
 	<key name="ConEmu">
-		<key name=".Vanilla" modified="2017-04-28 13:52:15" build="161206">
+		<key name=".Vanilla" modified="2017-06-19 10:46:04" build="161206">
 			<value name="StartType" type="hex" data="02"/>
 			<value name="CmdLine" type="string" data=""/>
 			<value name="StartTasksFile" type="string" data=""/>
@@ -97,15 +97,17 @@
 			<value name="JumpListAutoUpdate" type="hex" data="01"/>
 			<value name="SaveCmdHistory" type="hex" data="01"/>
 			<value name="CmdLineHistory" type="multi">
-				<line data="{PowerShell::PS Code Tester}"/>
 				<line data="{PowerShell::PowerShell v2}"/>
-				<line data="{Shells::PowerShell}"/>
+				<line data="{PowerShell::PowerShell}"/>
+				<line data="{Shells::cmd}"/>
 				<line data="{Bash::bash-wsl}"/>
-				<line data="{Shells::PowerShell x86}"/>
 				<line data="{Shells::PowerShell (Admin)}"/>
+				<line data="{PowerShell::PS Code Tester}"/>
+				<line data="{PowerShell::PowerShell - NoProfile}"/>
+				<line data="{Shells::PowerShell}"/>
+				<line data="{Shells::PowerShell x86}"/>
 				<line data="{Shells::cmd-32}"/>
 				<line data="{Shells::cmd (Admin)}"/>
-				<line data="{Shells::cmd}"/>
 				<line data="{Shells::PowerShell - NoProfile (Admin)}"/>
 				<line data="{Shells::PowerShell - NoProfile}"/>
 				<line data="{Bash::bash}"/>
@@ -415,7 +417,7 @@
 			<value name="Update.DownloadPath" type="string" data="%TEMP%\ConEmu"/>
 			<value name="Update.LeavePackages" type="hex" data="00"/>
 			<value name="Update.PostUpdateCmd" type="string" data="echo Last successful update&gt;ConEmuUpdate.info &amp;&amp; date /t&gt;&gt;ConEmuUpdate.info &amp;&amp; time /t&gt;&gt;ConEmuUpdate.info"/>
-			<key name="HotKeys" modified="2017-04-28 13:52:16" build="161206">
+			<key name="HotKeys" modified="2017-06-19 10:46:04" build="161206">
 				<value name="KeyMacroVersion" type="hex" data="02"/>
 				<value name="Multi.Modifier" type="dword" data="0000005b"/>
 				<value name="Multi.ArrowsModifier" type="dword" data="0000005b"/>
@@ -600,9 +602,9 @@
 				<value name="DndRKey" type="hex" data="a2"/>
 				<value name="WndDragKey" type="dword" data="00121101"/>
 			</key>
-			<key name="Tasks" modified="2017-04-28 13:52:16" build="161206">
+			<key name="Tasks" modified="2017-06-19 10:46:04" build="161206">
 				<value name="Count" type="long" data="17"/>
-				<key name="Task1" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task1" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{PowerShell::PowerShell}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -611,7 +613,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task2" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task2" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{PowerShell::PowerShell (Admin)}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -620,7 +622,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task3" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task3" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{PowerShell::PowerShell - NoProfile}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -629,7 +631,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task4" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task4" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{PowerShell::PowerShell - NoProfile (Admin)}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -638,7 +640,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task5" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task5" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{PowerShell::PowerShell x86}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -647,16 +649,16 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task6" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task6" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{PowerShell::PowerShell v2}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
 					<value name="GuiArgs" type="string" data=""/>
-					<value name="Cmd1" type="string" data="powershell.exe -version 2 -noprofile"/>
+					<value name="Cmd1" type="string" data="powershell.exe -version 2 -noexit -noprofile -command function prompt { &quot;'PSv' + $($PSVersionTable.PSVersion.Major) + ' ' + $($executionContext.SessionState.Path.CurrentLocation) + $('&gt;' * ($nestedPromptLevel + 1)) + ' '&quot; } -cur_console:t:&quot;PowerShell v2&quot;"/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task7" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task7" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{PowerShell::PS Code Tester}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -666,7 +668,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="2"/>
 				</key>
-				<key name="Task8" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task8" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{Shells::cmd}"/>
 					<value name="Flags" type="dword" data="00000002"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -675,7 +677,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task9" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task9" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{Shells::cmd (Admin)}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -684,7 +686,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task10" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task10" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{Shells::cmd-32}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -693,7 +695,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task11" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task11" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{Shells::cmd 64/32}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -703,7 +705,7 @@
 					<value name="Active" type="long" data="1"/>
 					<value name="Count" type="long" data="2"/>
 				</key>
-				<key name="Task12" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task12" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{Bash::bash-wsl}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -712,7 +714,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task13" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task13" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{Bash::Babun}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -721,7 +723,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task14" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task14" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{Bash::Babun (Admin)}"/>
 					<value name="Flags" type="dword" data="00000000"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -730,7 +732,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task15" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task15" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{Putty}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -739,7 +741,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task16" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task16" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{Helper::Show ANSI colors}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -748,7 +750,7 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 				</key>
-				<key name="Task17" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Task17" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="{Tools::Chocolatey (Admin)}"/>
 					<value name="Flags" type="dword" data="00000004"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
@@ -758,9 +760,9 @@
 					<value name="Count" type="long" data="1"/>
 				</key>
 			</key>
-			<key name="Apps" modified="2017-04-28 13:52:16" build="161206">
+			<key name="Apps" modified="2017-06-19 10:46:04" build="161206">
 				<value name="Count" type="long" data="4"/>
-				<key name="App1" modified="2017-04-28 13:52:16" build="161206">
+				<key name="App1" modified="2017-06-19 10:46:04" build="161206">
 					<value name="AppNames" type="string" data="cmd.exe"/>
 					<value name="Elevated" type="hex" data="00"/>
 					<value name="OverridePalette" type="hex" data="00"/>
@@ -784,7 +786,7 @@
 					<value name="ClipboardClickPromptPosition" type="hex" data="00"/>
 					<value name="ClipboardDeleteLeftWord" type="hex" data="00"/>
 				</key>
-				<key name="App2" modified="2017-04-28 13:52:16" build="161206">
+				<key name="App2" modified="2017-06-19 10:46:04" build="161206">
 					<value name="AppNames" type="string" data="bash.exe|bash"/>
 					<value name="Elevated" type="hex" data="00"/>
 					<value name="OverridePalette" type="hex" data="01"/>
@@ -808,7 +810,7 @@
 					<value name="ClipboardClickPromptPosition" type="hex" data="00"/>
 					<value name="ClipboardDeleteLeftWord" type="hex" data="00"/>
 				</key>
-				<key name="App3" modified="2017-04-28 13:52:16" build="161206">
+				<key name="App3" modified="2017-06-19 10:46:04" build="161206">
 					<value name="AppNames" type="string" data="ssh.exe"/>
 					<value name="Elevated" type="hex" data="00"/>
 					<value name="OverridePalette" type="hex" data="00"/>
@@ -832,7 +834,7 @@
 					<value name="ClipboardClickPromptPosition" type="hex" data="00"/>
 					<value name="ClipboardDeleteLeftWord" type="hex" data="00"/>
 				</key>
-				<key name="App4" modified="2017-04-28 13:52:16" build="161206">
+				<key name="App4" modified="2017-06-19 10:46:04" build="161206">
 					<value name="AppNames" type="string" data="powershell.exe"/>
 					<value name="Elevated" type="hex" data="00"/>
 					<value name="OverridePalette" type="hex" data="01"/>
@@ -857,9 +859,9 @@
 					<value name="ClipboardDeleteLeftWord" type="hex" data="00"/>
 				</key>
 			</key>
-			<key name="Colors" modified="2017-04-28 13:52:16" build="161206">
+			<key name="Colors" modified="2017-06-19 10:46:04" build="161206">
 				<value name="Count" type="long" data="1"/>
-				<key name="Palette1" modified="2017-04-28 13:52:16" build="161206">
+				<key name="Palette1" modified="2017-06-19 10:46:04" build="161206">
 					<value name="Name" type="string" data="Bash2"/>
 					<value name="ExtendColors" type="hex" data="00"/>
 					<value name="ExtendColorIdx" type="hex" data="0e"/>
