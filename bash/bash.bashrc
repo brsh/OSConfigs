@@ -596,6 +596,7 @@ alias cls=clear
 alias ?='echo'
 alias functions='declare -F | cut -d " " -f3 | grep -v ^_ | sort | less'
 alias ducks='find . -maxdepth 1 -mindepth 1 -print0 | xargs -0 -n1 du -ks 2> /dev/null | sort -rn | head -$((LINES - 10)) | cut -f2 | xargs du -hs 2> /dev/null'
+alias dirsize="sudo du -h / | grep -P '^[0-9\.]+G'"
 
 alias ls='\ls --color=auto --human-readable --group-directories-first --classify'
 
