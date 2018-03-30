@@ -494,8 +494,8 @@ function pwd_size() {
 	local Bytes
 	local suffix
 	let TotalBytes=0
-
-	for Bytes in $(\ls -lAn | grep "^-" | awk '{ print $5 }'); do
+	
+	for Bytes in $(\ls -lAn 2> /dev/null | grep "^-" | awk '{ print $5 }'); do
 		let TotalBytes=$TotalBytes+$Bytes
 	done
 
