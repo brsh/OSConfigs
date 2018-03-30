@@ -16,7 +16,7 @@ set functioncolor yellow,black
 
 ## Copy the appropriate files into the appropriate location...
 ## Most linux (not Mac) can handle 
-include "/usr/share/nano/*.nanorc
+include "/usr/share/nano/*.nanorc"
 
 ## On Mac, comment "header" in each file (although check on newer versions):
 ## 	for file in /usr/share/nano/*.nanorc; do [[ -f $file ]] && ed -s "$file" <<< $'g/header/s//#header/g\nw\nq'; done
