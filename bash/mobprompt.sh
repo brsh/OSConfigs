@@ -496,7 +496,9 @@ function pwd_size() {
 	let TotalBytes=0
 	
 	for Bytes in $(\ls -lAn 2> /dev/null | grep "^-" | awk '{ print $5 }'); do
-		let TotalBytes=$TotalBytes+$Bytes
+		if [ "$res" == "1" ]; then               
+        		let TotalBytes=$TotalBytes+$Bytes
+		fi                                       
 	done
 
 	if [ $TotalBytes -lt 1024 ]; then
