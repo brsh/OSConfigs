@@ -120,7 +120,7 @@ function get-disk {
 	printf "${SubHead}"
 	echo "FileSystem Type Size Used Avail Used Mounted On" | awk '{printf "  %-20s %6s %6s %5s  %-9s %s %s\n", $1,$3,$5,$6,$2,$7,$8 }'
 	printf "${Text}"
-	df -hT -x tmpfs -x devtmpfs -l | awk 'NR>1 {printf "  %-20s %6s %6s %5s  %-9s %s %s\n", $1,$3,$5,$6,$2,$7,$8 }'
+	df -hT -x tmpfs -x devtmpfs -x squashfs -l | awk 'NR>1 {printf "  %-20s %6s %6s %5s  %-9s %s %s\n", $1,$3,$5,$6,$2,$7,$8 }'
 	printf "${Color_Off}"
 	printf "\n"
 }
