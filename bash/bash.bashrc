@@ -628,6 +628,7 @@ if [ $UID -ne 0 ]; then
 		WSL )
 			export DISPLAY="localhost:0.0"
 			export NO_AT_BRIDGE=1
+			export LIBGL_ALWAYS_INDIRECT=1
 			alias nanobash='sudo nano ${currBashrc} -Y sh'
 	esac
 
