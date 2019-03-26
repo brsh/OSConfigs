@@ -98,10 +98,6 @@ fi
 # Try to enable the auto-completion (type: "install bash-completion" to install it).
 [ -r /usr/share/bash-completion/bash_completion ] && . /usr/share/bash-completion/bash_completion
 
-# Try to enable the "Command not found" hook ("pacman -S pkgfile" to install it).
-# See also: https://wiki.archlinux.org/index.php/Bash#The_.22command_not_found.22_hook
-[ -r /usr/share/doc/pkgfile/command-not-found.bash ] && . /usr/share/doc/pkgfile/command-not-found.bash
-
 ####################
 ## Set Color Vars ##
 ####################
@@ -642,6 +638,25 @@ if [ $UID -ne 0 ]; then
 			alias sudo-s='/usr/bin/cygstart --action=runas /usr/bin/mintty -e /usr/bin/bash --login'
 		;;
 		*buntu* | *Mint* | *ingu* | *etrunne* | *lementar* | *Debia*)
+			# if the command-not-found package is installed, use it
+			if [ -x /usr/lib/command-not-found -o -x /usr/share/command-not-found/command-not-found ]; then
+			        function command_not_found_handle {
+		        	        # check because c-n-f could've been removed in the meantime
+			                if [ -x /usr/lib/command-not-found ]; then
+			                   /usr/lib/command-not-found -- "$1"
+			                   return $?
+			                elif [ -x /usr/share/command-not-found/command-not-found ]; then
+			                   /usr/share/command-not-found/command-not-found -- "$1"
+			                   return $?
+			                else
+			                   printf "%s: command not found\n" "$1" >&2
+			                   return 127
+			                fi
+			        }
+			else
+				echo "You should install the command-not-found package"
+			fi
+		
 			alias update='sudo apt-get update && sudo apt-get upgrade'
 			alias dist-upgrade='sudo apt-get update && sudo apt-get dist-upgrade'
 			alias install='sudo apt-get install'
@@ -658,6 +673,10 @@ if [ $UID -ne 0 ]; then
 			alias nanobash='sudo nano /etc/profile.d/bash.sh --syntax=sh -w'
 		;;
 		*Arch* | *anjar* | *ntergo* )
+			# Try to enable the "Command not found" hook ("pacman -S pkgfile" to install it).
+			# See also: https://wiki.archlinux.org/index.php/Bash#The_.22command_not_found.22_hook
+			[ -r /usr/share/doc/pkgfile/command-not-found.bash ] && . /usr/share/doc/pkgfile/command-not-found.bash
+		
 			alias shutdown='confirm sudo shutdown now -h'
 			alias update='sudo pacman -Syu'
 			alias install='sudo pacman -S'
