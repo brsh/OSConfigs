@@ -657,9 +657,9 @@ if [ $UID -ne 0 ]; then
 				echo "You should install the command-not-found package"
 			fi
 		
-			alias update='sudo apt-get update && sudo apt-get upgrade'
-			alias dist-upgrade='sudo apt-get update && sudo apt-get dist-upgrade'
-			alias install='sudo apt-get install'
+			alias update='sudo apt update && sudo apt upgrade'
+			alias dist-upgrade='sudo apt update && sudo apt dist-upgrade'
+			alias install='sudo apt install'
 			alias autoremove='sudo apt-get autoremove'
 		;;
 		*edora* )
