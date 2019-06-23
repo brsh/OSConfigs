@@ -233,7 +233,7 @@
             "acrylicOpacity": 0.5,
             "closeOnExit": true,
             "colorScheme": "Campbell",
-            "commandline": "wsl.exe -d Ubuntu-18.04",
+            "commandline": "wsl.exe ~ -d Ubuntu-18.04",
             "cursorColor": "#FFFFFF",
             "cursorShape": "bar",
             "fontFace": "Consolas",
@@ -245,13 +245,13 @@
             "padding": "0, 0, 0, 0",
             "snapOnInput": true,
             "useAcrylic": false,
-            "startingDirectory": "~"
+            "startingDirectory": ""
         },
         {
             "acrylicOpacity": 0.9,
             "closeOnExit": true,
             "colorScheme": "Solarized Dark",
-            "commandline": "wsl.exe -d Arch",
+            "commandline": "wsl.exe ~ -d Arch",
             "cursorColor": "#FFFFFF",
             "cursorShape": "bar",
             "fontFace": "Hack",
@@ -263,7 +263,7 @@
             "padding": "0, 0, 0, 0",
             "snapOnInput": true,
             "useAcrylic": true,
-            "startingDirectory": "~"
+            "startingDirectory": ""
         }
     ],
     "schemes": [
