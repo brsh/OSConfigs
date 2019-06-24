@@ -250,7 +250,7 @@
         {
             "acrylicOpacity": 0.9,
             "closeOnExit": true,
-            "colorScheme": "Solarized Dark",
+            "colorScheme": "Tango",
             "commandline": "wsl.exe ~ -d Arch",
             "cursorColor": "#FFFFFF",
             "cursorShape": "bar",
@@ -371,6 +371,27 @@
             "red": "#D30102",
             "white": "#EEE8D5",
             "yellow": "#B58900"
+        },
+        {
+            "background": "#000000",
+            "black": "#000000",
+            "blue": "#3465A4",
+            "brightBlack": "#555753",
+            "brightBlue": "#729FCF",
+            "brightCyan": "#34E2E2",
+            "brightGreen": "#8AE234",
+            "brightPurple": "#AD7FA8",
+            "brightRed": "#EF2929",
+            "brightWhite": "#EEEEEC",
+            "brightYellow": "#FCE94F",
+            "cyan": "#06989A",
+            "foreground": "#D3D7CF",
+            "green": "#4E9A06",
+            "name": "Tango",
+            "purple": "#75507B",
+            "red": "#CC0000",
+            "white": "#D3D7CF",
+            "yellow": "#C4A000"
         }
     ]
 }
