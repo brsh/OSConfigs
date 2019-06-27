@@ -26,10 +26,21 @@ IF %errorlevel% == 0 (
 	)
 )
 
+if NOT "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
+	:: We are 32-bit (maybe just the cmd exe...)
+	IF DEFINED ANSICON_VER (
+		set proc=[$e[1;33mx32$e[1;37m]
+	) ELSE (
+		set proc=[x32]
+	)
+)
+
 ::Set the prompt
 ::The time portion ($T) includes miliseconds and seconds - $H backspaces them out
 if DEFINED ANSICON_VER (
-	prompt $e[1;37m[$e[1;33m%date:~0,3%$S$T$H$H$H$H$H$H$e[1;37m]$S[$e[1;32m%username%%IsAdmin%$e[1;37m]$S[$e[1;36m$P$e[1;37m]$_$G$e[0m$s
+	prompt $e[1;37m[$e[1;33m%date:~0,3%$S$T$H$H$H$H$H$H$e[1;37m]$S[$e[1;32m%username%%IsAdmin%$e[1;37m]$S[$e[1;36m$P$e[1;37m]$S%proc%$_$G$e[0m$s
 ) ELSE (
-	prompt [%date:~0,3%$S$T$H$H$H$H$H$H]$S[%username%%IsAdmin%]$S[$P]$_$G$S
+	prompt [%date:~0,3%$S$T$H$H$H$H$H$H]$S[%username%%IsAdmin%]$S[$P]$S%proc%$_$G$S
 )
+
+set proc=
