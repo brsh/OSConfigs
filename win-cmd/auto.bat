@@ -1,4 +1,5 @@
 @echo off
+
 ::Various macros
 doskey ls=dir /og /x $*
 doskey cat=type $* $B more
@@ -36,11 +37,27 @@ if NOT "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
 )
 
 ::Set the prompt
-::The time portion ($T) includes miliseconds and seconds - $H backspaces them out
-if DEFINED ANSICON_VER (
-	prompt $e[1;37m[$e[1;33m%date:~0,3%$S$T$H$H$H$H$H$H$e[1;37m]$S[$e[1;32m%username%%IsAdmin%$e[1;37m]$S[$e[1;36m$P$e[1;37m]$S%proc%$_$G$e[0m$s
+if DEFINED ConEmuPID (
+	rem Reset color and add notify ConEmu about prompt input start coords
+	set ConEmuPrompt=$e[m$S$e]9;12$e\
 ) ELSE (
-	prompt [%date:~0,3%$S$T$H$H$H$H$H$H]$S[%username%%IsAdmin%]$S[$P]$S%proc%$_$G$S
+	set ConEmuPrompt=
 )
 
-set proc=
+
+::The time portion ($T) includes miliseconds and seconds - $H backspaces them out
+if DEFINED ANSICON_VER (
+	prompt $e[1;37m[$e[1;33m%date:~0,3%$S$T$H$H$H$H$H$H$e[1;37m]$S[$e[1;32m%username%%IsAdmin%$e[1;37m]$S[$e[1;36m$P$e[1;37m]$S%proc%$_$G$e[0m$s%ConEmuPrompt%
+) ELSE (
+	prompt [%date:~0,3%$S$T$H$H$H$H$H$H]$S[%username%%IsAdmin%]$S[$P]$S%proc%$_$G$S%ConEmuPrompt%
+)
+
+if DEFINED ConEmuPID (
+	rem Support additional batch execution as `{cmd} "path\to\batch.cmd" <arguments>`
+	rem Due to parsing rules of cmd.exe last argument must NOT ends with "
+	if "%~1" == "" goto END
+	rem We can't call here %* unfortunately
+	call %1 %2 %3 %4 %5 %6 %7 %8 %9
+)
+
+:END
