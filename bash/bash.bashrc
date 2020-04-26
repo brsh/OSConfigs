@@ -678,7 +678,7 @@ if [ $UID -ne 0 ]; then
 			[ -r /usr/share/doc/pkgfile/command-not-found.bash ] && . /usr/share/doc/pkgfile/command-not-found.bash
 		
 			alias shutdown='confirm sudo shutdown now -h'
-			alias update='sudo pacman -Syu'
+			alias update='sudo pacman -S archlinux-keyring && sudo pacman -Syu'
 			alias install='sudo pacman -S'
 			alias yogurt=yaourt
 			alias update-grub='sudo grub-mkconfig -o /boot/grub/grub.cfg'
