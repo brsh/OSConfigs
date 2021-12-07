@@ -626,7 +626,7 @@ if [ $UID -ne 0 ]; then
 			# export NO_AT_BRIDGE=1
 			export DISPLAY=$(awk '/nameserver / {print $2; exit}' /etc/resolv.conf 2>/dev/null):0
 			export LIBGL_ALWAYS_INDIRECT=1
-			profile="$(powershell.exe -noprofile -c 'Write-Host -NoNewLine $env:userprofile' | xargs -0 wslpath)/"
+			profile="$(powershell.exe -noprofile -c 'Write-Host -NoNewLine $env:userprofile' | xargs -0 wslpath)"
 			alias nanobash='sudo nano ${currBashrc} -Y sh'
 	esac
 
